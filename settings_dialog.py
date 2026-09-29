@@ -1,8 +1,4 @@
-"""Settings dialog for Spider Break Companion.
-
-Supports configuring recurring break intervals, autostart, reduced-motion animation options,
-and managing One-Time Custom Reminders (add, edit, delete, inline validation).
-"""
+"""Settings and Reminder Manager dialog for Spider Break Companion."""
 from __future__ import annotations
 
 import time
@@ -11,7 +7,9 @@ from typing import Callable, Optional
 
 from PyQt5.QtCore import QDate, QDateTime, QTime, Qt
 from PyQt5.QtWidgets import (
+    QButtonGroup,
     QCheckBox,
+    QComboBox,
     QDateEdit,
     QDialog,
     QFormLayout,
@@ -22,6 +20,8 @@ from PyQt5.QtWidgets import (
     QLineEdit,
     QMessageBox,
     QPushButton,
+    QRadioButton,
+    QSpinBox,
     QTableWidget,
     QTableWidgetItem,
     QTimeEdit,
@@ -33,24 +33,24 @@ from config import save_settings, set_autostart
 
 
 class SettingsDialog(QDialog):
-    """Settings dialog for break companion intervals, startup, animations, and custom reminders."""
+    """Reminder Manager and Settings dialog for Spider Break Companion."""
 
     def __init__(
         self,
         settings: dict,
         on_save_callback: Callable[[dict], None],
-        on_test_callback: Callable[[str, Optional[dict]], None],
+        on_test_animation_callback: Callable[[], None],
         parent=None,
     ):
         super().__init__(parent)
         self.settings = settings
         self.on_save_callback = on_save_callback
-        self.on_test_callback = on_test_callback
+        self.on_test_animation_callback = on_test_animation_callback
 
         self.editing_reminder_id: Optional[str] = None
 
-        self.setWindowTitle("Spider Break Companion Settings")
-        self.setFixedWidth(540)
+        self.setWindowTitle("Spidey Reminder Manager")
+        self.setFixedWidth(620)
         self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
 
         self.init_ui()
@@ -58,301 +58,470 @@ class SettingsDialog(QDialog):
     def init_ui(self):
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(20, 20, 20, 20)
-        main_layout.setSpacing(16)
+        main_layout.setSpacing(14)
 
-        title = QLabel("🕷  Spider Break Companion Settings", self)
-        title.setStyleSheet("font-size: 16px; font-weight: bold; color: #0F172A;")
+        # Title Header
+        title = QLabel("🕷  Spidey Reminder Manager", self)
+        title.setStyleSheet("font-size: 18px; font-weight: bold; color: #0F172A;")
         main_layout.addWidget(title)
 
-        # 1. Recurring Reminders & Preferences Group
-        rec_group = QGroupBox("Recurring Breaks & Preferences", self)
-        rec_layout = QFormLayout(rec_group)
-        rec_layout.setSpacing(10)
+        # First Launch Welcome Banner if no reminders set
+        if self.settings.get("first_launch", False) or not self.settings.get("reminders"):
+            self.banner = QWidget(self)
+            self.banner.setStyleSheet("""
+                QWidget {
+                    background-color: #EFF6FF;
+                    border: 1px solid #BFDBFE;
+                    border-radius: 8px;
+                    padding: 8px;
+                }
+            """)
+            b_layout = QVBoxLayout(self.banner)
+            b_layout.setContentsMargins(12, 10, 12, 10)
+            b_text = QLabel(
+                "✨ <b>Welcome!</b> Add your first reminder below, or pick a template (Eye Break / Hydration) to get started.",
+                self.banner,
+            )
+            b_text.setWordWrap(True)
+            b_text.setStyleSheet("color: #1E40AF; font-size: 13px;")
+            b_layout.addWidget(b_text)
+            main_layout.addWidget(self.banner)
 
-        self.eye_input = QLineEdit(str(self.settings.get("eye_minutes", 20)), rec_group)
-        self.eye_input.setFixedWidth(70)
-        rec_layout.addRow("Eye break interval (minutes):", self.eye_input)
+        # 1. Add / Edit Reminder Form Group
+        form_group = QGroupBox("Add / Edit Reminder", self)
+        form_layout = QVBoxLayout(form_group)
+        form_layout.setSpacing(10)
 
-        self.water_input = QLineEdit(str(self.settings.get("water_minutes", 120)), rec_group)
-        self.water_input.setFixedWidth(70)
-        rec_layout.addRow("Water break interval (minutes):", self.water_input)
+        # Template Selection Row
+        template_row = QHBoxLayout()
+        tpl_label = QLabel("Optional Template:", form_group)
+        tpl_label.setStyleSheet("font-weight: 600; color: #475569;")
+        template_row.addWidget(tpl_label)
 
-        self.startup_check = QCheckBox("Start with Windows", rec_group)
-        self.startup_check.setChecked(bool(self.settings.get("start_with_windows", False)))
-        rec_layout.addRow("", self.startup_check)
-
-        self.reduced_motion_check = QCheckBox("Enable reduced motion (skip entrance animations)", rec_group)
-        self.reduced_motion_check.setChecked(bool(self.settings.get("reduced_motion", False)))
-        rec_layout.addRow("", self.reduced_motion_check)
-
-        main_layout.addWidget(rec_group)
-
-        # 2. Custom Reminders Group
-        custom_group = QGroupBox("Custom One-Time Reminders", self)
-        custom_layout = QVBoxLayout(custom_group)
-        custom_layout.setSpacing(10)
+        self.tpl_combo = QComboBox(form_group)
+        self.tpl_combo.addItem("-- Choose a template to autofill... --", None)
+        self.tpl_combo.addItem("👁 Eye Break (Repeating every 20 minutes)", "eye")
+        self.tpl_combo.addItem("💧 Hydration Break (Repeating every 2 hours)", "water")
+        self.tpl_combo.currentIndexChanged.connect(self.on_template_selected)
+        template_row.addWidget(self.tpl_combo, stretch=1)
+        form_layout.addLayout(template_row)
 
         form = QFormLayout()
         form.setSpacing(8)
 
-        self.title_input = QLineEdit(custom_group)
-        self.title_input.setPlaceholderText("e.g. Call Rahul or Project meeting")
+        self.title_input = QLineEdit(form_group)
+        self.title_input.setPlaceholderText("e.g. Call Rahul, Eye Break, or Team Meeting")
         form.addRow("Reminder Title *:", self.title_input)
 
-        self.message_input = QLineEdit(custom_group)
-        self.message_input.setPlaceholderText("e.g. Discuss project timeline (optional)")
+        self.message_input = QLineEdit(form_group)
+        self.message_input.setPlaceholderText("e.g. Look 20 feet away for 20 seconds (optional)")
         form.addRow("Optional Message:", self.message_input)
 
-        # Date & Time Pickers (Local computer time)
-        picker_row = QHBoxLayout()
-        now_dt = datetime.now() + timedelta(minutes=10)
+        # Schedule Type Selection (Radio Buttons)
+        type_row = QHBoxLayout()
+        self.radio_once = QRadioButton("One-Time Schedule", form_group)
+        self.radio_recurring = QRadioButton("Repeating Schedule", form_group)
+        self.radio_once.setChecked(True)
 
-        self.date_edit = QDateEdit(QDate(now_dt.year, now_dt.month, now_dt.day), custom_group)
+        self.type_group = QButtonGroup(self)
+        self.type_group.addButton(self.radio_once)
+        self.type_group.addButton(self.radio_recurring)
+        self.radio_once.toggled.connect(self.toggle_schedule_type_ui)
+
+        type_row.addWidget(self.radio_once)
+        type_row.addWidget(self.radio_recurring)
+        type_row.addStretch()
+        form.addRow("Schedule Type:", type_row)
+
+        # One-Time Schedule Container
+        self.once_container = QWidget(form_group)
+        once_layout = QHBoxLayout(self.once_container)
+        once_layout.setContentsMargins(0, 0, 0, 0)
+        once_layout.setSpacing(8)
+
+        now_dt = datetime.now() + timedelta(minutes=15)
+        self.date_edit = QDateEdit(QDate(now_dt.year, now_dt.month, now_dt.day), self.once_container)
         self.date_edit.setCalendarPopup(True)
-        picker_row.addWidget(self.date_edit)
+        once_layout.addWidget(self.date_edit)
 
-        self.time_edit = QTimeEdit(QTime(now_dt.hour, now_dt.minute), custom_group)
-        picker_row.addWidget(self.time_edit)
+        self.time_edit = QTimeEdit(QTime(now_dt.hour, now_dt.minute), self.once_container)
+        once_layout.addWidget(self.time_edit)
 
-        local_label = QLabel("(Computer's Local Time)", custom_group)
-        local_label.setStyleSheet("color: #64748B; font-size: 11px;")
-        picker_row.addWidget(local_label)
+        local_lbl = QLabel("(Computer's Local Time)", self.once_container)
+        local_lbl.setStyleSheet("color: #64748B; font-size: 11px;")
+        once_layout.addWidget(local_lbl)
+        once_layout.addStretch()
 
-        form.addRow("Scheduled Time *:", picker_row)
-        custom_layout.addLayout(form)
+        form.addRow("Date & Time *:", self.once_container)
 
-        # Add / Update Reminder Button
-        btn_row = QHBoxLayout()
-        self.btn_add_custom = QPushButton("Add Custom Reminder", custom_group)
-        self.btn_add_custom.setStyleSheet("""
+        # Repeating Schedule Container
+        self.recurring_container = QWidget(form_group)
+        rec_layout = QHBoxLayout(self.recurring_container)
+        rec_layout.setContentsMargins(0, 0, 0, 0)
+        rec_layout.setSpacing(8)
+
+        rec_lbl = QLabel("Repeat every:", self.recurring_container)
+        rec_layout.addWidget(rec_lbl)
+
+        self.spin_interval = QSpinBox(self.recurring_container)
+        self.spin_interval.setRange(1, 999)
+        self.spin_interval.setValue(20)
+        rec_layout.addWidget(self.spin_interval)
+
+        self.unit_combo = QComboBox(self.recurring_container)
+        self.unit_combo.addItem("Minutes", "minutes")
+        self.unit_combo.addItem("Hours", "hours")
+        rec_layout.addWidget(self.unit_combo)
+        rec_layout.addStretch()
+
+        form.addRow("Repeat Interval *:", self.recurring_container)
+        self.recurring_container.hide()
+
+        form_layout.addLayout(form)
+
+        # Form Action Buttons Row
+        btn_form_row = QHBoxLayout()
+        self.btn_save_rem = QPushButton("Save Reminder", form_group)
+        self.btn_save_rem.setStyleSheet("""
             QPushButton {
                 background: #2563EB;
                 color: white;
                 border-radius: 6px;
-                padding: 6px 14px;
+                padding: 7px 16px;
                 font-weight: bold;
             }
             QPushButton:hover {
                 background: #1D4ED8;
             }
         """)
-        self.btn_add_custom.clicked.connect(self.handle_add_or_update_reminder)
-        btn_row.addWidget(self.btn_add_custom)
+        self.btn_save_rem.clicked.connect(self.handle_save_reminder)
+        btn_form_row.addWidget(self.btn_save_rem)
 
-        self.btn_cancel_edit = QPushButton("Cancel Edit", custom_group)
+        self.btn_cancel_edit = QPushButton("Cancel Edit", form_group)
         self.btn_cancel_edit.hide()
-        self.btn_cancel_edit.clicked.connect(self.reset_custom_inputs)
-        btn_row.addWidget(self.btn_cancel_edit)
+        self.btn_cancel_edit.clicked.connect(self.reset_form_inputs)
+        btn_form_row.addWidget(self.btn_cancel_edit)
 
-        btn_row.addStretch()
-        custom_layout.addLayout(btn_row)
+        btn_test_anim = QPushButton("🕷 Test Animation", form_group)
+        btn_test_anim.setToolTip("Preview entrance animation (does not save a reminder)")
+        btn_test_anim.setStyleSheet("""
+            QPushButton {
+                background: #F1F5F9;
+                color: #334155;
+                border: 1px solid #CBD5E1;
+                border-radius: 6px;
+                padding: 7px 14px;
+                font-weight: 600;
+            }
+            QPushButton:hover {
+                background: #E2E8F0;
+            }
+        """)
+        btn_test_anim.clicked.connect(self.on_test_animation_callback)
+        btn_form_row.addWidget(btn_test_anim)
 
-        # Table of Upcoming Reminders
-        self.table = QTableWidget(custom_group)
+        btn_form_row.addStretch()
+        form_layout.addLayout(btn_form_row)
+
+        main_layout.addWidget(form_group)
+
+        # 2. Saved Reminders Table Group
+        list_group = QGroupBox("Your Reminders", self)
+        list_layout = QVBoxLayout(list_group)
+        list_layout.setSpacing(8)
+
+        self.table = QTableWidget(list_group)
         self.table.setColumnCount(4)
-        self.table.setHorizontalHeaderLabels(["Title", "Scheduled Local Time", "Status", "Actions"])
+        self.table.setHorizontalHeaderLabels(["Title & Message", "Schedule Details", "Status", "Actions"])
         self.table.horizontalHeader().setSectionResizeMode(0, QHeaderView.Stretch)
         self.table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeToContents)
         self.table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeToContents)
         self.table.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeToContents)
-        self.table.setMinimumHeight(140)
+        self.table.setMinimumHeight(160)
 
-        custom_layout.addWidget(self.table)
-        main_layout.addWidget(custom_group)
+        list_layout.addWidget(self.table)
+        main_layout.addWidget(list_group)
 
-        self.refresh_table()
+        # 3. Preferences Group
+        pref_group = QGroupBox("App Preferences", self)
+        pref_layout = QVBoxLayout(pref_group)
+        pref_layout.setSpacing(6)
 
-        # 3. Test Buttons & Save Row
-        action_group = QHBoxLayout()
+        self.startup_check = QCheckBox("Start with Windows automatically", pref_group)
+        self.startup_check.setChecked(bool(self.settings.get("start_with_windows", False)))
+        pref_layout.addWidget(self.startup_check)
 
-        btn_test_eye = QPushButton("Test Eye Break", self)
-        btn_test_eye.clicked.connect(lambda: self.on_test_callback("eye", None))
-        action_group.addWidget(btn_test_eye)
+        self.reduced_motion_check = QCheckBox("Enable reduced motion (skip entrance animations)", pref_group)
+        self.reduced_motion_check.setChecked(bool(self.settings.get("reduced_motion", False)))
+        pref_layout.addWidget(self.reduced_motion_check)
 
-        btn_test_water = QPushButton("Test Water Break", self)
-        btn_test_water.clicked.connect(lambda: self.on_test_callback("water", None))
-        action_group.addWidget(btn_test_water)
+        main_layout.addWidget(pref_group)
 
-        action_group.addStretch()
+        # Footer Dialog Action Row
+        footer_row = QHBoxLayout()
+        footer_row.addStretch()
 
-        btn_cancel = QPushButton("Cancel", self)
-        btn_cancel.clicked.connect(self.reject)
-        action_group.addWidget(btn_cancel)
-
-        btn_save = QPushButton("Save Settings", self)
-        btn_save.setDefault(True)
-        btn_save.setStyleSheet("""
+        btn_close = QPushButton("Close", self)
+        btn_close.setDefault(True)
+        btn_close.setStyleSheet("""
             QPushButton {
                 background: #0F172A;
                 color: white;
                 border-radius: 6px;
-                padding: 6px 16px;
+                padding: 7px 20px;
                 font-weight: bold;
             }
             QPushButton:hover {
                 background: #1E293B;
             }
         """)
-        btn_save.clicked.connect(self.save)
-        action_group.addWidget(btn_save)
+        btn_close.clicked.connect(self.save_preferences_and_close)
+        footer_row.addWidget(btn_close)
 
-        main_layout.addLayout(action_group)
+        main_layout.addLayout(footer_row)
 
-    def handle_add_or_update_reminder(self):
-        """Validate input and add/update a custom one-time reminder."""
+        self.refresh_table()
+
+    def toggle_schedule_type_ui(self):
+        """Toggle visibility between One-Time and Repeating schedule inputs."""
+        if self.radio_once.isChecked():
+            self.once_container.show()
+            self.recurring_container.hide()
+        else:
+            self.once_container.hide()
+            self.recurring_container.show()
+
+    def on_template_selected(self, index: int):
+        """Autofill form from selected template without saving automatically."""
+        tpl_key = self.tpl_combo.currentData()
+        if not tpl_key:
+            return
+
+        if tpl_key == "eye":
+            self.title_input.setText("Eye Break")
+            self.message_input.setText("Look 20 feet away for 20 seconds")
+            self.radio_recurring.setChecked(True)
+            self.spin_interval.setValue(20)
+            self.unit_combo.setCurrentIndex(0)  # minutes
+        elif tpl_key == "water":
+            self.title_input.setText("Hydration Break")
+            self.message_input.setText("Time to drink water")
+            self.radio_recurring.setChecked(True)
+            self.spin_interval.setValue(2)
+            self.unit_combo.setCurrentIndex(1)  # hours
+
+    def handle_save_reminder(self):
+        """Validate input and save/update reminder in settings."""
         title = self.title_input.text().strip()
         msg = self.message_input.text().strip()
 
         if not title:
-            QMessageBox.critical(self, "Invalid Title", "Please enter a title for the custom reminder.")
+            QMessageBox.critical(self, "Title Required", "Please enter a title for your reminder.")
             return
 
-        qdate = self.date_edit.date()
-        qtime = self.time_edit.time()
-        dt = datetime(qdate.year(), qdate.month(), qdate.day(), qtime.hour(), qtime.minute(), qtime.second())
-        ts = dt.timestamp()
+        is_once = self.radio_once.isChecked()
+        reminders = self.settings.get("reminders", [])
 
-        # Reject past times unless editing
-        if ts <= time.time():
-            QMessageBox.critical(
-                self,
-                "Invalid Scheduled Time",
-                "Scheduled time must be in the future (computer's local time).",
-            )
-            return
+        if is_once:
+            qdate = self.date_edit.date()
+            qtime = self.time_edit.time()
+            dt = datetime(qdate.year(), qdate.month(), qdate.day(), qtime.hour(), qtime.minute(), qtime.second())
+            ts = dt.timestamp()
 
-        custom_list = self.settings.get("custom_reminders", [])
+            if ts <= time.time() and not self.editing_reminder_id:
+                QMessageBox.critical(
+                    self,
+                    "Invalid Time",
+                    "Scheduled date and time must be in the future (computer's local time).",
+                )
+                return
 
-        if self.editing_reminder_id:
-            # Update existing reminder
-            for rem in custom_list:
-                if rem.get("id") == self.editing_reminder_id:
-                    rem["title"] = title
-                    rem["message"] = msg
-                    rem["due_timestamp"] = ts
-                    rem["due_datetime_iso"] = dt.isoformat()
-                    rem["completed"] = False
-                    break
-        else:
-            # Add new reminder
-            new_id = f"rem_{int(time.time() * 1000)}"
-            custom_list.append({
-                "id": new_id,
+            rem_dict = {
+                "id": self.editing_reminder_id or f"rem_{int(time.time() * 1000)}",
                 "title": title,
                 "message": msg,
+                "schedule_type": "once",
                 "due_timestamp": ts,
                 "due_datetime_iso": dt.isoformat(),
+                "enabled": True,
                 "completed": False,
-            })
+            }
+        else:
+            val = self.spin_interval.value()
+            unit = self.unit_combo.currentData()
+            total_min = val if unit == "minutes" else val * 60
 
-        self.settings["custom_reminders"] = custom_list
+            rem_dict = {
+                "id": self.editing_reminder_id or f"rem_{int(time.time() * 1000)}",
+                "title": title,
+                "message": msg,
+                "schedule_type": "recurring",
+                "interval_value": val,
+                "interval_unit": unit,
+                "interval_minutes": total_min,
+                "enabled": True,
+                "completed": False,
+                "next_due_timestamp": time.time() + (total_min * 60),
+                "snoozed_until": 0.0,
+            }
+
+        if self.editing_reminder_id:
+            for idx, r in enumerate(reminders):
+                if r.get("id") == self.editing_reminder_id:
+                    reminders[idx] = rem_dict
+                    break
+        else:
+            reminders.append(rem_dict)
+
+        self.settings["reminders"] = reminders
+        self.settings["first_launch"] = False
         save_settings(self.settings)
-        self.reset_custom_inputs()
-        self.refresh_table()
 
-    def reset_custom_inputs(self):
+        self.reset_form_inputs()
+        self.refresh_table()
+        self.on_save_callback(self.settings)
+
+    def reset_form_inputs(self):
         self.editing_reminder_id = None
         self.title_input.clear()
         self.message_input.clear()
-        self.btn_add_custom.setText("Add Custom Reminder")
+        self.tpl_combo.setCurrentIndex(0)
+        self.radio_once.setChecked(True)
+        self.btn_save_rem.setText("Save Reminder")
         self.btn_cancel_edit.hide()
 
-        now_dt = datetime.now() + timedelta(minutes=10)
+        now_dt = datetime.now() + timedelta(minutes=15)
         self.date_edit.setDate(QDate(now_dt.year, now_dt.month, now_dt.day))
         self.time_edit.setTime(QTime(now_dt.hour, now_dt.minute))
 
     def refresh_table(self):
-        """Refresh the upcoming custom reminders table."""
-        custom_list = self.settings.get("custom_reminders", [])
-        # Filter uncompleted reminders
-        pending = [r for r in custom_list if not r.get("completed", False)]
-        pending.sort(key=lambda x: x.get("due_timestamp", 0))
+        """Refresh saved reminders table."""
+        reminders = self.settings.get("reminders", [])
+        self.table.setRowCount(len(reminders))
 
-        self.table.setRowCount(len(pending))
+        now = time.time()
 
-        for row, rem in enumerate(pending):
-            self.table.setItem(row, 0, QTableWidgetItem(rem.get("title", "")))
+        for row, rem in enumerate(reminders):
+            # Column 0: Title & Message
+            t_text = rem.get("title", "")
+            m_text = rem.get("message", "")
+            full_txt = f"{t_text}\n({m_text})" if m_text else t_text
+            self.table.setItem(row, 0, QTableWidgetItem(full_txt))
 
-            ts = rem.get("due_timestamp", 0)
-            dt_str = datetime.fromtimestamp(ts).strftime("%Y-%m-%d %H:%M")
-            self.table.setItem(row, 1, QTableWidgetItem(dt_str))
+            # Column 1: Schedule Details
+            stype = rem.get("schedule_type", "once")
+            if stype == "once":
+                ts = rem.get("due_timestamp", 0)
+                sched_txt = f"Once: {datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M')}"
+            else:
+                val = rem.get("interval_value", rem.get("interval_minutes", 20))
+                unit = rem.get("interval_unit", "minutes")
+                sched_txt = f"Every {val} {unit}"
+            self.table.setItem(row, 1, QTableWidgetItem(sched_txt))
 
-            is_overdue = ts < time.time()
-            status_text = "Overdue" if is_overdue else "Pending"
-            status_item = QTableWidgetItem(status_text)
-            if is_overdue:
-                status_item.setForeground(Qt.red)
-            self.table.setItem(row, 2, status_item)
+            # Column 2: Status Badge
+            enabled = rem.get("enabled", False)
+            completed = rem.get("completed", False)
 
-            # Action buttons widget
-            action_widget = QWidget()
-            action_layout = QHBoxLayout(action_widget)
-            action_layout.setContentsMargins(4, 2, 4, 2)
-            action_layout.setSpacing(6)
+            if completed:
+                status_txt = "Completed"
+                color = Qt.gray
+            elif not enabled:
+                status_txt = "Disabled"
+                color = Qt.gray
+            elif stype == "once" and rem.get("due_timestamp", 0) < now:
+                status_txt = "Overdue"
+                color = Qt.red
+            else:
+                status_txt = "Active"
+                color = Qt.darkGreen
 
-            btn_edit = QPushButton("Edit", action_widget)
-            btn_edit.setStyleSheet("padding: 2px 8px; font-size: 11px;")
+            s_item = QTableWidgetItem(status_txt)
+            s_item.setForeground(color)
+            self.table.setItem(row, 2, s_item)
+
+            # Column 3: Action Buttons (Edit, Enable/Disable, Delete)
+            act_widget = QWidget()
+            act_layout = QHBoxLayout(act_widget)
+            act_layout.setContentsMargins(4, 2, 4, 2)
+            act_layout.setSpacing(6)
+
+            btn_edit = QPushButton("Edit", act_widget)
+            btn_edit.setStyleSheet("padding: 2px 6px; font-size: 11px;")
             btn_edit.clicked.connect(lambda _, r=rem: self.edit_reminder(r))
-            action_layout.addWidget(btn_edit)
+            act_layout.addWidget(btn_edit)
 
-            btn_del = QPushButton("Delete", action_widget)
-            btn_del.setStyleSheet("padding: 2px 8px; font-size: 11px; color: #DC2626;")
+            btn_toggle = QPushButton("Disable" if enabled else "Enable", act_widget)
+            btn_toggle.setStyleSheet("padding: 2px 6px; font-size: 11px;")
+            btn_toggle.clicked.connect(lambda _, r_id=rem.get("id"): self.toggle_reminder(r_id))
+            act_layout.addWidget(btn_toggle)
+
+            btn_del = QPushButton("Delete", act_widget)
+            btn_del.setStyleSheet("padding: 2px 6px; font-size: 11px; color: #DC2626;")
             btn_del.clicked.connect(lambda _, r_id=rem.get("id"): self.delete_reminder(r_id))
-            action_layout.addWidget(btn_del)
+            act_layout.addWidget(btn_del)
 
-            self.table.setCellWidget(row, 3, action_widget)
+            self.table.setCellWidget(row, 3, act_widget)
 
     def edit_reminder(self, rem: dict):
-        """Populate form fields for editing an existing custom reminder."""
+        """Populate form fields for editing an existing reminder."""
         self.editing_reminder_id = rem.get("id")
         self.title_input.setText(rem.get("title", ""))
         self.message_input.setText(rem.get("message", ""))
 
-        ts = rem.get("due_timestamp", time.time())
-        dt = datetime.fromtimestamp(ts)
-        self.date_edit.setDate(QDate(dt.year, dt.month, dt.day))
-        self.time_edit.setTime(QTime(dt.hour, dt.minute))
+        stype = rem.get("schedule_type", "once")
+        if stype == "once":
+            self.radio_once.setChecked(True)
+            ts = rem.get("due_timestamp", time.time())
+            dt = datetime.fromtimestamp(ts)
+            self.date_edit.setDate(QDate(dt.year, dt.month, dt.day))
+            self.time_edit.setTime(QTime(dt.hour, dt.minute))
+        else:
+            self.radio_recurring.setChecked(True)
+            self.spin_interval.setValue(rem.get("interval_value", 20))
+            unit = rem.get("interval_unit", "minutes")
+            self.unit_combo.setCurrentIndex(0 if unit == "minutes" else 1)
 
-        self.btn_add_custom.setText("Update Custom Reminder")
+        self.btn_save_rem.setText("Update Reminder")
         self.btn_cancel_edit.show()
 
-    def delete_reminder(self, rem_id: str):
-        """Delete a custom reminder after confirmation."""
-        custom_list = self.settings.get("custom_reminders", [])
-        self.settings["custom_reminders"] = [r for r in custom_list if r.get("id") != rem_id]
+    def toggle_reminder(self, rem_id: str):
+        """Toggle enabled/disabled state for a reminder."""
+        reminders = self.settings.get("reminders", [])
+        for rem in reminders:
+            if rem.get("id") == rem_id:
+                rem["enabled"] = not rem.get("enabled", False)
+                if rem["enabled"] and rem.get("schedule_type") == "recurring":
+                    rem["next_due_timestamp"] = time.time() + (rem.get("interval_minutes", 20) * 60)
+                break
         save_settings(self.settings)
-        if self.editing_reminder_id == rem_id:
-            self.reset_custom_inputs()
         self.refresh_table()
+        self.on_save_callback(self.settings)
 
-    def save(self):
-        """Validate recurring interval inputs and save settings."""
-        try:
-            eye_min = int(self.eye_input.text().strip())
-            water_min = int(self.water_input.text().strip())
+    def delete_reminder(self, rem_id: str):
+        """Delete a reminder after confirmation."""
+        reminders = self.settings.get("reminders", [])
+        self.settings["reminders"] = [r for r in reminders if r.get("id") != rem_id]
+        save_settings(self.settings)
 
-            if not (1 <= eye_min <= 180):
-                raise ValueError("Eye break interval must be between 1 and 180 minutes.")
-            if not (15 <= water_min <= 360):
-                raise ValueError("Water break interval must be between 15 and 360 minutes.")
+        if self.editing_reminder_id == rem_id:
+            self.reset_form_inputs()
+        self.refresh_table()
+        self.on_save_callback(self.settings)
 
-        except ValueError as err:
-            QMessageBox.critical(self, "Invalid Interval", str(err))
-            return
-
+    def save_preferences_and_close(self):
+        """Save startup and reduced motion preferences and close dialog."""
         startup = self.startup_check.isChecked()
         try:
             set_autostart(startup)
         except OSError as exc:
-            QMessageBox.warning(self, "Startup Error", str(exc))
+            QMessageBox.warning(self, "Startup Setting Error", str(exc))
 
         self.settings.update({
-            "eye_minutes": eye_min,
-            "water_minutes": water_min,
             "start_with_windows": startup,
             "reduced_motion": self.reduced_motion_check.isChecked(),
+            "first_launch": False,
         })
-
         save_settings(self.settings)
         self.on_save_callback(self.settings)
         self.accept()

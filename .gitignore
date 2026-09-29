@@ -42,3 +42,10 @@ ENV/
 # Verification artifacts
 *.mp4
 test_*.png
+*.spec
+scratch/
+
+# Node & Website Build Artifacts
+website/node_modules/
+website/dist/
+website/.cache/
