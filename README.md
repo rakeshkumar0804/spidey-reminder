@@ -1,48 +1,117 @@
-# 🕷 Spider Break Companion
+# 🕷 Spidey Reminder (v1.1.0)
 
-A lightweight, transparent Windows desktop reminder companion that brings Spider-Man to your desktop for eye and hydration breaks!
+[![Release](https://img.shields.io/github/v/release/rakeshkumar0804/spidey-reminder?color=red&logo=github)](https://github.com/rakeshkumar0804/spidey-reminder/releases/tag/v1.1.0)
+[![Download EXE](https://img.shields.io/badge/Download-SpideyReminder.exe-blue?logo=windows)](https://github.com/rakeshkumar0804/spidey-reminder/releases/download/v1.1.0/SpideyReminder.exe)
+[![Platform](https://img.shields.io/badge/Platform-Windows%2010%20%7C%2011-0078D6?logo=windows)](https://github.com/rakeshkumar0804/spidey-reminder)
 
-![Visual Target](spiderman_hanging.png)
+A lightweight, custom-first Windows desktop reminder companion that brings Spider-Man to your screen when tasks are due!
 
-## Features
-
-- **Spider-Man Animation**: Spider-Man hangs upside down on a web attached to the top edge of your Windows screen. He smoothly descends when a break is due, settles near the upper-right corner, and climbs back up when dismissed.
-- **Eye & Water Reminders**:
-  - **Eye Break**: 20-minute default interval with a live 20-second countdown ("Look 20 feet away for 20 seconds").
-  - **Water Break**: 120-minute default interval, configurable to 60 minutes or custom intervals ("Time to drink water").
-- **Automatic dismissal**: Eye, water, and one-time custom reminders each get a 20-second countdown after the final word appears. At zero, the card closes, Spider-Man ascends, and the web retracts (about 1.3 seconds for the exit). Done dismisses early; Snooze 5m keeps a custom reminder pending.
-- **Staged entrance**: The supplied white web appears first, Spider-Man descends, the empty card opens, and the sentence appears one word every 300 ms. The app’s Reduced Motion checkbox shows the full card immediately while keeping the timer; leaving it unchecked plays the full sequence, independently of Windows animation preferences.
-- **Artwork**: The supplied character illustration is cut out in `spiderman_hanging.png`. The supplied web texture is embedded in `overlay.py`, so no extra asset file or folder is needed.
-- **Clean Visual Target UI**: Matches the modern card design with red corner accents, red header tags, and responsive buttons (`Done` and `Snooze 5m`).
-- **Focus Protection**: Uses native Windows `WS_EX_NOACTIVATE` window styling so keyboard focus is never stolen while you are coding or typing.
-- **System Tray App**: Runs quietly in the notification area. Right-click the tray icon to pause/resume reminders, open settings, or run quick test animations.
-- **Break Queueing**: If multiple breaks trigger at the same time, they are queued and played sequentially rather than being missed.
-- **Multi-Monitor & DPI Scaling**: Automatically anchors to the active monitor top screen edge across display scaling configurations.
+![Spidey Reminder Showcase](spiderman_hanging.png)
 
 ---
 
-## How to Launch on Windows
+## 📦 Features & Highlights
 
-### Option 1: Direct Python Launch
-Make sure Python 3.10+ and requirements are installed:
+- **Custom-Reminder-First Design**:
+  - Fresh installations start with **zero active reminders** for a clean slate.
+  - Create one-time reminders for specific dates/times or recurring schedules (every N minutes or hours).
+  - Quick-start templates for **Eye Break** (20-20-20 rule) and **Hydration** (water breaks).
+- **Spider-Man Entrance Animation**:
+  - Spider-Man shoots down a thin twisted web strand from the top edge of your monitor.
+  - Visibly descends, hangs upside down, and settles near the top right of your active display.
+  - Plays a movie-like entrance animation sequence or respects reduced-motion preferences.
+- **Card UI & Controls**:
+  - Displays reminder title, custom message, and header tags (`■ CUSTOM REMINDER`, `■ EYE BREAK`, `■ HYDRATION`, `■ OVERDUE REMINDER`).
+  - **Snooze 5m**: Postpones the reminder by 5 minutes without missing future recurring occurrences.
+  - **Done**: Completes the current break.
+- **Automatic 20-Second Dismissal**:
+  - Every break counts down for 20 seconds.
+  - Automatically dismisses and retracts Spider-Man cleanly back up off-screen if left unattended.
+- **Legacy Migration Support**:
+  - Users upgrading from older versions get a one-time prompt to keep or disable previous automatic Eye/Water break schedules.
+- **Windows Focus Protection**:
+  - Built with Win32 `WS_EX_NOACTIVATE` and `WS_EX_TOPMOST` window flags so typing and gaming focus are never interrupted.
+- **System Tray Integration**:
+  - Runs quietly in the system notification area.
+  - Right-click tray menu for **Reminder Manager**, **Test Animation**, **Pause/Resume**, and **Quit**.
+- **100% Private & Offline**:
+  - All reminders and settings are stored locally in `%APPDATA%\SpiderBreakCompanion\settings.json`.
+
+---
+
+## 🚀 Quick Start / Direct Download
+
+### Standalone Executable (Recommended for End Users)
+Download the pre-compiled portable `.exe` (no Python installation required):
+👉 **[Download SpideyReminder.exe (v1.1.0)](https://github.com/rakeshkumar0804/spidey-reminder/releases/download/v1.1.0/SpideyReminder.exe)**
+
+Simply double-click `SpideyReminder.exe`. It will place an icon in your system tray and open the Reminder Manager on first launch.
+
+---
+
+## 🛠 Building & Running from Source
+
+### Prerequisites
+- Python 3.10+
+- Windows 10 or 11
+
+### Installation & Launch
+1. Clone the repository:
+   ```powershell
+   git clone https://github.com/rakeshkumar0804/spidey-reminder.git
+   cd spidey-reminder
+   ```
+2. Install Python dependencies:
+   ```powershell
+   pip install PyQt5 Pillow pywin32
+   ```
+3. Run the application:
+   ```powershell
+   python companion.py
+   ```
+
+### Packaging into a Standalone Executable
+To package the app into a single-file executable (`dist/SpideyReminder.exe`) using PyInstaller:
 ```powershell
-pip install PyQt5 Pillow pywin32 pystray
-python companion.py
+python -m PyInstaller --noconfirm --clean --onefile --windowed --name SpideyReminder --icon tray_icon.png --add-data "spiderman_hanging.png:." --add-data "tray_icon.png:." companion.py
 ```
 
-### Option 2: Windows Batch Launcher
-Double-click `start.bat` in the project folder to run the application quietly in the background without opening a command prompt window.
+---
+
+## 🌐 Product Website
+
+The project includes a standalone product showcase website located in the `website/` directory, built with **React**, **Vite**, **Tailwind CSS**, and **Lucide Icons**.
+
+To run the website locally:
+```bash
+cd website
+npm install
+npm run dev
+```
+To build the website for production:
+```bash
+npm run build
+```
 
 ---
 
-## Quick Testing
-To inspect the animation immediately without waiting for timers:
-1. Right-click the spider icon in your Windows System Tray (near the clock).
-2. Click **👁 Test eye break** or **💧 Test water reminder**.
-3. Alternatively, open **Settings...** and click the **Test Eye Break** or **Test Water Break** buttons.
+## 📁 Repository Structure
 
-## Updating an existing checkout
+```text
+spidey-reminder/
+├── companion.py           # Main application entry point & system tray management
+├── overlay.py             # Spider-Man 6-stage overlay animation window & card UI
+├── reminder_engine.py     # Scheduling, snooze, queueing, & persistent timers
+├── settings_dialog.py     # PyQt Reminder Manager dialog for creating/editing tasks
+├── config.py              # Settings persistence (%APPDATA%\SpiderBreakCompanion)
+├── tray.py                # System tray icon & context menu handlers
+├── spiderman_hanging.png  # Character artwork asset (cutout)
+├── tray_icon.png          # System tray icon asset
+├── website/               # Product download website (React + Vite + Tailwind)
+└── README.md              # Documentation
+```
 
-Quit the existing tray app, pull the latest changes into your existing repository, then run `start.bat` again. The project keeps the same root-level file structure.
+---
 
-Validation: countdown, completion callbacks, custom snoozing, and the reduced-motion override were checked with offscreen Qt. The owner also confirmed the entrance animation and automatic dismissal working on Windows. Multi-monitor and different DPI configurations have not been comprehensively tested.
+## 📄 License
+Distributed under the MIT License.
