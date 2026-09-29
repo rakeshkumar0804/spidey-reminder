@@ -1,117 +1,142 @@
-# 🕷 Spidey Reminder (v1.1.0)
+# Spidey Reminder
 
 [![Release](https://img.shields.io/github/v/release/rakeshkumar0804/spidey-reminder?color=red&logo=github)](https://github.com/rakeshkumar0804/spidey-reminder/releases/tag/v1.1.0)
-[![Download EXE](https://img.shields.io/badge/Download-SpideyReminder.exe-blue?logo=windows)](https://github.com/rakeshkumar0804/spidey-reminder/releases/download/v1.1.0/SpideyReminder.exe)
 [![Platform](https://img.shields.io/badge/Platform-Windows%2010%20%7C%2011-0078D6?logo=windows)](https://github.com/rakeshkumar0804/spidey-reminder)
+[![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 
-A lightweight, custom-first Windows desktop reminder companion that brings Spider-Man to your screen when tasks are due!
+A Windows desktop companion for custom reminders, delivered by an animated Spider-Man overlay.
 
-![Spidey Reminder Showcase](spiderman_hanging.png)
-
----
-
-## 📦 Features & Highlights
-
-- **Custom-Reminder-First Design**:
-  - Fresh installations start with **zero active reminders** for a clean slate.
-  - Create one-time reminders for specific dates/times or recurring schedules (every N minutes or hours).
-  - Quick-start templates for **Eye Break** (20-20-20 rule) and **Hydration** (water breaks).
-- **Spider-Man Entrance Animation**:
-  - Spider-Man shoots down a thin twisted web strand from the top edge of your monitor.
-  - Visibly descends, hangs upside down, and settles near the top right of your active display.
-  - Plays a movie-like entrance animation sequence or respects reduced-motion preferences.
-- **Card UI & Controls**:
-  - Displays reminder title, custom message, and header tags (`■ CUSTOM REMINDER`, `■ EYE BREAK`, `■ HYDRATION`, `■ OVERDUE REMINDER`).
-  - **Snooze 5m**: Postpones the reminder by 5 minutes without missing future recurring occurrences.
-  - **Done**: Completes the current break.
-- **Automatic 20-Second Dismissal**:
-  - Every break counts down for 20 seconds.
-  - Automatically dismisses and retracts Spider-Man cleanly back up off-screen if left unattended.
-- **Legacy Migration Support**:
-  - Users upgrading from older versions get a one-time prompt to keep or disable previous automatic Eye/Water break schedules.
-- **Windows Focus Protection**:
-  - Built with Win32 `WS_EX_NOACTIVATE` and `WS_EX_TOPMOST` window flags so typing and gaming focus are never interrupted.
-- **System Tray Integration**:
-  - Runs quietly in the system notification area.
-  - Right-click tray menu for **Reminder Manager**, **Test Animation**, **Pause/Resume**, and **Quit**.
-- **100% Private & Offline**:
-  - All reminders and settings are stored locally in `%APPDATA%\SpiderBreakCompanion\settings.json`.
+[Website](https://spidey-reminder.vercel.app) • [Download v1.1.0 EXE](https://github.com/rakeshkumar0804/spidey-reminder/releases/download/v1.1.0/SpideyReminder.exe) • [Releases Page](https://github.com/rakeshkumar0804/spidey-reminder/releases)
 
 ---
 
-## 🚀 Quick Start / Direct Download
+## Product Preview
 
-### Standalone Executable (Recommended for End Users)
-Download the pre-compiled portable `.exe` (no Python installation required):
-👉 **[Download SpideyReminder.exe (v1.1.0)](https://github.com/rakeshkumar0804/spidey-reminder/releases/download/v1.1.0/SpideyReminder.exe)**
+![Spidey Reminder Desktop Overlay](docs/desktop_preview.png)
 
-Simply double-click `SpideyReminder.exe`. It will place an icon in your system tray and open the Reminder Manager on first launch.
+*Preview rendered from the desktop overlay component.*
 
 ---
 
-## 🛠 Building & Running from Source
+## Features
 
-### Prerequisites
-- Python 3.10+
-- Windows 10 or 11
+- **Custom Reminders**: Create one-time reminders for specific dates and times, or set repeating schedules in minutes or hours.
+- **Clean Initial Setup**: Fresh installations start with zero active reminders, leaving full control to the user.
+- **Optional Templates**: Quick pre-fill options for Eye Break (20-20-20 rule) and Hydration reminders.
+- **Animated Desktop Overlay**: Spider-Man descends from the top of your monitor to display your reminder card.
+- **Flexible Dismissal**: Respond with **Done**, postpone by 5 minutes with **Snooze 5m**, or let the 20-second timer auto-dismiss.
+- **System Tray & Preferences**: Runs quietly in the notification area with local offline persistence, startup options, and reduced-motion preferences.
 
-### Installation & Launch
-1. Clone the repository:
-   ```powershell
-   git clone https://github.com/rakeshkumar0804/spidey-reminder.git
-   cd spidey-reminder
-   ```
-2. Install Python dependencies:
-   ```powershell
-   pip install PyQt5 Pillow pywin32
-   ```
-3. Run the application:
-   ```powershell
-   python companion.py
-   ```
+---
 
-### Packaging into a Standalone Executable
-To package the app into a single-file executable (`dist/SpideyReminder.exe`) using PyInstaller:
+## Download & Quick Start
+
+### Standalone Executable (For End Users)
+
+- **Supported OS**: Windows 10 / 11 (64-bit).
+- **Download Link**: [SpideyReminder.exe (v1.1.0)](https://github.com/rakeshkumar0804/spidey-reminder/releases/download/v1.1.0/SpideyReminder.exe)
+
+1. Download `SpideyReminder.exe` and open it. No Python installation or setup is required.
+2. The **Reminder Manager** window automatically opens on first launch.
+3. Add a custom reminder or choose an optional template, then click **Save Reminder**.
+4. Access controls anytime by right-clicking the spider icon in your Windows system tray.
+
+---
+
+## Local Development
+
+### Desktop Application Setup
+
+Running the Python application from source requires **Python 3.10+** on Windows 10 or 11.
+
+Clone the repository, then enter its directory:
+
 ```powershell
-python -m PyInstaller --noconfirm --clean --onefile --windowed --name SpideyReminder --icon tray_icon.png --add-data "spiderman_hanging.png:." --add-data "tray_icon.png:." companion.py
+# 1. Clone the repository
+git clone https://github.com/rakeshkumar0804/spidey-reminder.git
+cd spidey-reminder
+
+# 2. Install required Python packages
+python -m pip install PyQt5 Pillow pywin32
+
+# 3. Launch the desktop application
+python companion.py
 ```
 
----
+### Product Website Setup
 
-## 🌐 Product Website
+The standalone showcase website is located in the `website/` directory and built using React, Vite, and Tailwind CSS. Requires **Node.js 18+**.
 
-The project includes a standalone product showcase website located in the `website/` directory, built with **React**, **Vite**, **Tailwind CSS**, and **Lucide Icons**.
+From the repository root, run:
 
-To run the website locally:
-```bash
+```powershell
+# 1. Navigate to the website directory
 cd website
+
+# 2. Install Node dependencies
 npm install
+
+# 3. Start local development server
 npm run dev
-```
-To build the website for production:
-```bash
+
+# 4. Build website for production
 npm run build
 ```
 
 ---
 
-## 📁 Repository Structure
+## Building the Windows Executable
 
-```text
-spidey-reminder/
-├── companion.py           # Main application entry point & system tray management
-├── overlay.py             # Spider-Man 6-stage overlay animation window & card UI
-├── reminder_engine.py     # Scheduling, snooze, queueing, & persistent timers
-├── settings_dialog.py     # PyQt Reminder Manager dialog for creating/editing tasks
-├── config.py              # Settings persistence (%APPDATA%\SpiderBreakCompanion)
-├── tray.py                # System tray icon & context menu handlers
-├── spiderman_hanging.png  # Character artwork asset (cutout)
-├── tray_icon.png          # System tray icon asset
-├── website/               # Product download website (React + Vite + Tailwind)
-└── README.md              # Documentation
+To package the Python desktop application into a single-file portable executable (`dist/SpideyReminder.exe`), install PyInstaller and run the packaging command.
+
+From the repository root, run:
+
+```powershell
+# 1. Install PyInstaller
+python -m pip install pyinstaller
+
+# 2. Package into a single-file executable
+python -m PyInstaller `
+  --noconfirm `
+  --clean `
+  --onefile `
+  --windowed `
+  --name SpideyReminder `
+  --icon tray_icon.png `
+  --add-data "spiderman_hanging.png;." `
+  --add-data "tray_icon.png;." `
+  companion.py
 ```
+
+The output binary will be generated at `dist/SpideyReminder.exe`.
 
 ---
 
-## 📄 License
-Distributed under the MIT License.
+## Project Structure
+
+| Path | Purpose |
+| :--- | :--- |
+| `companion.py` | Main application entry point, single-instance mutex, and app lifecycle manager |
+| `overlay.py` | Transparent PyQt overlay window, Spider-Man animation sequence, and card UI |
+| `reminder_engine.py` | Core scheduling logic, background timers, snooze handling, and reminder queues |
+| `settings_dialog.py` | Reminder Manager GUI dialog for creating, editing, and toggling schedules |
+| `config.py` | Settings loader and local JSON storage manager |
+| `tray.py` | System tray icon, context menu handlers, and notification integration |
+| `spiderman_hanging.png` | Character cutout artwork used by the desktop overlay |
+| `tray_icon.png` | Application icon asset for system tray and window headers |
+| `website/` | Standalone product website source code (React, Vite, Tailwind CSS) |
+
+---
+
+## Settings & Known Limitations
+
+- **Local Storage Path**: Reminders and app settings are stored locally on your machine at `%APPDATA%\SpiderBreakCompanion\settings.json`.
+- **Known Visual Issue**: Reminder text may appear all at once instead of word by word on some Windows setups.
+- **Browser Demo Note**: The product website preview runs entirely in the browser and does not schedule desktop reminders.
+
+---
+
+## Feedback & License
+
+- **Issue Tracker**: Report bugs or feature requests on [GitHub Issues](https://github.com/rakeshkumar0804/spidey-reminder/issues).
+- **License Status**: No `LICENSE` file is currently included in this repository. Spider-Man character artwork and character rights remain the property of their respective copyright holders.
