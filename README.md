@@ -10,6 +10,9 @@ A lightweight, transparent Windows desktop reminder companion that brings Spider
 - **Eye & Water Reminders**:
   - **Eye Break**: 20-minute default interval with a live 20-second countdown ("Look 20 feet away for 20 seconds").
   - **Water Break**: 120-minute default interval, configurable to 60 minutes or custom intervals ("Time to drink water").
+- **Automatic dismissal**: Eye, water, and one-time custom reminders each get a 20-second countdown after the final word appears. At zero, the card closes, Spider-Man ascends, and the web retracts (about 1.3 seconds for the exit). Done dismisses early; Snooze 5m keeps a custom reminder pending.
+- **Staged entrance**: The supplied white web appears first, Spider-Man descends, the empty card opens, and the sentence appears one word every 300 ms. The app’s Reduced Motion checkbox shows the full card immediately while keeping the timer; leaving it unchecked plays the full sequence, independently of Windows animation preferences.
+- **Artwork**: The supplied character illustration is cut out in `spiderman_hanging.png`. The supplied web texture is embedded in `overlay.py`, so no extra asset file or folder is needed.
 - **Clean Visual Target UI**: Matches the modern card design with red corner accents, red header tags, and responsive buttons (`Done` and `Snooze 5m`).
 - **Focus Protection**: Uses native Windows `WS_EX_NOACTIVATE` window styling so keyboard focus is never stolen while you are coding or typing.
 - **System Tray App**: Runs quietly in the notification area. Right-click the tray icon to pause/resume reminders, open settings, or run quick test animations.
@@ -37,3 +40,9 @@ To inspect the animation immediately without waiting for timers:
 1. Right-click the spider icon in your Windows System Tray (near the clock).
 2. Click **👁 Test eye break** or **💧 Test water reminder**.
 3. Alternatively, open **Settings...** and click the **Test Eye Break** or **Test Water Break** buttons.
+
+## Updating an existing checkout
+
+Quit the existing tray app, pull the latest changes into your existing repository, then run `start.bat` again. The project keeps the same root-level file structure.
+
+Validation: countdown, completion callbacks, custom snoozing, and the reduced-motion override were checked with offscreen Qt. The owner also confirmed the entrance animation and automatic dismissal working on Windows. Multi-monitor and different DPI configurations have not been comprehensively tested.

@@ -145,7 +145,7 @@ class ReminderEngine(QObject):
                     break
             save_settings(self.settings)
 
-        self.on_break_finished()
+        self.on_break_finished(completed=False)
 
         if kind != "custom":
             snooze_ms = minutes * 60 * 1000
@@ -163,10 +163,10 @@ class ReminderEngine(QObject):
                 break
         save_settings(self.settings)
 
-    def on_break_finished(self):
+    def on_break_finished(self, completed: bool = True):
         """Called when active break window completes or is dismissed."""
-        # Mark custom reminder completed if Done was clicked
-        if self.active_break and self.active_break["kind"] == "custom":
+        # Done and automatic timeout complete a reminder; Snooze keeps it pending.
+        if completed and self.active_break and self.active_break["kind"] == "custom":
             self.mark_custom_completed(self.active_break["custom_data"])
 
         self.active_break = None

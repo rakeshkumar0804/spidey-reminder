@@ -98,7 +98,9 @@ class BreakCompanionApp:
             on_done=on_done,
             on_snooze=on_snooze,
             custom_data=custom_data,
-            force_reduced_motion=reduced_motion_pref if reduced_motion_pref else None,
+            # Pass False explicitly: an unchecked app setting must play the
+            # entrance even if Windows has disabled its own UI animations.
+            force_reduced_motion=reduced_motion_pref,
         )
         self.active_overlay = overlay
         overlay.start_sequence()

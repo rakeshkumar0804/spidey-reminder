@@ -7,7 +7,7 @@ Features a movie-like 6-stage entrance animation sequence:
 4. SETTLE: Small damped hanging motion + pause for 400 ms.
 5. CARD OPEN: Open empty reminder card over 400 ms (heading visible, sentence hidden).
 6. WORD REVEAL: Reveal sentence WORD BY WORD at 300 ms per word.
-7. ACTIVE: Action buttons appear; 20s eye break countdown starts.
+7. ACTIVE: Every reminder counts down for 20 seconds, then exits automatically.
 
 Clean character transparency, separate application-rendered web strand, Win32 focus protection,
 and screen bounds constraint.
@@ -15,6 +15,9 @@ and screen bounds constraint.
 from __future__ import annotations
 
 import ctypes
+import base64
+import math
+import time
 import re
 from enum import Enum, auto
 from pathlib import Path
@@ -25,6 +28,7 @@ from PyQt5.QtCore import (
     QPoint,
     QPropertyAnimation,
     QRect,
+    QRectF,
     QTimer,
     Qt,
     pyqtProperty,
@@ -33,6 +37,7 @@ from PyQt5.QtGui import (
     QColor,
     QCursor,
     QFont,
+    QFontMetrics,
     QGuiApplication,
     QPainter,
     QPen,
@@ -49,6 +54,57 @@ from PyQt5.QtWidgets import (
 )
 
 ASSET_PATH = Path(__file__).parent / "spiderman_hanging.png"
+
+# User-supplied twisted web artwork, cut out and embedded to keep the repository layout.
+WEB_TEXTURE_PNG = (
+    b"iVBORw0KGgoAAAANSUhEUgAAABsAAABzCAYAAABpc3liAAAM/0lEQVR4nLWaWXBVx5nHf1/3ufdquQgtIARIbGIxBtksBhswRmGC"
+    b"F1Jje4jHVcnDzJPLL1M18zRv8zjPU3lPxfEk5XLGntjxFqewXTi22QLGZhMCCwkhBMYIofUu53R/83CucFIT6R7pKl0l3Zdz+tdf"
+    b"99dff9+/jwwMDDBdMxQIGFNf6OU//vPnvPjTf+eVX73Gf/3sZ+QKIW+99guaawY5+KN9hCzFUSeOzAz9zdA8KRy1kkrXsra9lRuD"
+    b"/aSCgInJHAgIigdAZuomGQwMSkAQBOzb0cHVc2d5YP1ajh89Cj4CjQisRRHQimHxqJ0LaG9fw52hPrZt38Jbv/0t6cBibYBgwEcY"
+    b"cWV5CWDxoG2qyM7dm7hypYsVK9o4dvQkqJBOpwkkwjCG4CqHGSAIlPXrl/PHTz/ln/75p7zxxm8oFop4Fbwqhohyc5kApngEEUhZ"
+    b"T3d3N5cudrF3zx7e/t07QIANLJKgs7Iwj8FTg3fVqFM2rF/P2++8w4EfdtK6fAVOBRdqIn9MNI2ejHiqwXka6ut44cf/yGuvv8FL"
+    b"L7/EF18cwwQG0QhKG6EiWImIx+Aix57dT/DtrdssqGsglclyrfcq1kwgzAwsC5t6wOOx4hETgFgOPHOAd37/PgcPvcQrrx0jpA4h"
+    b"r3YGR0lumQEjIAigbHxwI4Pf3mb9xge5NnCX4bFxjOYw5OZu2f0HBRCJ3xCoqaolW5ulr+8GrW0ruX59ECnjJcktu98EI4IYC2r4"
+    b"5nIva9es5VrfNcCBD7XyaQTEGASInBJ5jw1S9PRcpalpMcNDQxidxEph2vdnbdnUjgoIsCbF3eFRMlVVTE4WELS0BeYJBsQnigkQ"
+    b"Y4nCCO80Dsg6c5fBXDgoqPc452hetJix0XEaGhtxksVJDdOdb4ktU8CILXmcx0VFRCNWrWrhxq1rtCxtxIugpKf1ycQw+YtfT2CF"
+    b"Qn6Cjo7N3Lx5nbZVrajGm79i2BRJxGBsQBiGjI2P09KyiOGhG7Q0N4FUoVTNB8zEmzpOPrh6rY+WJY1cuXSKDe1LSKcsnio86XmA"
+    b"eY8VgxVD5EKOHjvG47t38cnh9/lh504MGg/k/l8lMAOIYKwQhiFdl7ppXtREd9dJNnWsxqgicVCbu2X3A48HjKCqnDh+goce6uBC"
+    b"1zl2796GUYenCsWWHW9ZmKGgNiiC9+RyeY4cOUJnZyfvvfcuO7Z24NXgqcVXCjMoxucRP4kRR09PF3V1WUaGb9PT3Y1qERNU4aUW"
+    b"KoUBGBMHcmsyqHhefPHHfPjBRzy+53F85HDRTLvr+5YgXCliQgye/oE7dGx+mLAYIcawfPkyAmMRW4qLlZ1nHsFj/CRhWOSDD4/y"
+    b"3D+8wAfvvc+hQ4cQgchHoD5Ruj8DzBMwSYrbKtYxcHOcoREllakhlw9Zu2YVIkIQBKDzUFgYJjVlhvCqHP7kK/7+2Rc4fvRPPP/8"
+    b"IZz7M0Ay1swwAYwIY+NFTpzqYd0DD3H23AU2bFiLTwiYBSxCXZ4vv7zA2ge2c/ZsF3e+G6ZQnLmAmANMMRRwRHx+/DJPPvkMJ098"
+    b"Tk1NCmMsCDivszo2/uqzhogUOQwRo6OOgZt5GuoXMj52i9qadJxdKTjnIYji+nPuxaDHkFdDRPeVXhoaF3O15zLLli4C8WiCjmcB"
+    b"KyFVudh1je3bdvD1V1+yfdsG8A6XJFzMHmYYHByhfd1a+vt7aF/TgroQazwKqIvPuHkp4CPvmMg5arP1FAqTLKg1oJ7IxWtUKBYJ"
+    b"UmmkXN6dBKYqhM4i1pIKLBnjIIqwNs4QFEVMIt8oDwu9AwJELClrsAEYG1sXD0YxCWWJsjD1gFhEFEEQUVIWfMlD1HuMNUmj1cww"
+    b"a1L4sIjBk8sXUHEYE+fyXoTIRVRlMok39swwa/CugHMhxTDEmCqKCQ/KWcMCozQ0VDE6OoqYNMMjxbJJzZxhIp7FjdWMDA+Rrsly"
+    b"ZygH5s+SUJ0qeyuATb1ujad1eQNXv7lMe/taenpvE4ax66mP1y4VpCrzRofBkxbFsq69la7zF9m6bTtff92NCabP5ecEg4CQWjxp"
+    b"2tqaCF2O1uUruHFrmFSmCu994o2cAAYg4JXqtKV50QImcjnqsovJ50OgtLdK4T/pqT3zFlFDTQB7drRx5MhHPLH/Kfr6BvBhRKCg"
+    b"OEzA/OQg3lRRpIbt2zfQdf4E27Y+RHPLEoqFIsjsJ7KMRpzGm1pqMvBIxzKudJ+lc9/jfPHFH0lsTiKYj9W4ULOkUwHPHtzGRx/+"
+    b"L88/d5AP/3CYQrE4a9j06bcxOKqAOvGINjelWb+6ka++OsWzzz7H22+9He8xBHzFGTEoAZ5qPNVYEZ55ajsfvvc79u/v5Oz5cwzd"
+    b"uUMxDBGTLBQneMoQsYAoqmVBNsVA71VOHD3Ooeef5+y5cxgR1CXLIxNJ7Z4sPshiMCzI1vD+B++yeXMHmzseouAsxiiB5KhYSVUE"
+    b"T0acZnAI2fp6tmzZwqkzp9l/4BDvvnseTIBhFJhet0oEi9ddVbBgDTYIOPjMU3x8+DA7d27l5J++IixGGJkoye0VwOKJSYtKgAvj"
+    b"W4kFdfWsWLmKb3r62dvZyZkzF2IlgWJJtp0jDAwh1TipxaRSuChCvWffE/v4+JOP2fd3T/LeHz4lDBXLREm2nbO4KYBF1SAIiuLV"
+    b"07a8lbvDwzQ1NfPdnUlyeYOiVKR+f9/0PkwVvHqcj7h0uYeVqzfTN/BdSfh00wbNWUmAMXAqbzR4hFNnzrJ63SYudfcCeQy5krRU"
+    b"iWVTM+Q9SCyaZdIZenp6aW1bRf/1QayJMBSnncjESqoI2JQiouSdA6t48YxPjtNQ38jI0BhWp7Nptpb9RfN4D6nAogrWZlCNk7y/"
+    b"AYyS58XShAlSOOdwKjNGrDnDDELkQjKZDNbGJa9OqdXzARMVbBDgfVyVIgb1impEEASoOmaSHGdv2X2tXUE9qUyKiYkJUkGAlSl/"
+    b"++vWzVrXnyKKUdKZDJl0mnv3RqhvqCfWuu6P6P+1Oa8ZwMTEJM3NLdwcvE1bWxvOKUowbaeziyDiMQGI9xix5HPw4LqN9HSfpn11"
+    b"I0qmlEZUCLsPxCMenAupymRYt24dt29fZ9XKJagYPCmpcBqVUn0ExNEqny9icQTkMJpnYX22rBKY6J7akidgEpXvJ6jr4iUefngT"
+    b"Z04fY++jD2NVUWrwc/1qIm4e4wugecRHWGMpFAuc/foMe/fs4Nhnv2fv3q0oHke1xLnmHKfRlP4ZBRWDMYZCocidO0OoK5DLfcvi"
+    b"xXV4MmiZnZRwzbyW7hAA4fDhj3h8z27Onz3N/r07Sx8wCOUEwdl5o8LY6CinT53mkUd28sXnR+h8Yhfq8yDlNYSEsCmboJCL2Lq1"
+    b"g1s3B+jrG8CYCK8W5xeU7a58kqogRGqNIwoNLlR+dPBpjh09Sk1VLam0gqnGUU3FNxYiiiWHlSL9/XdZ1LyMmmwNXZe6aG1txVpb"
+    b"OttgHr4HiTNH9cqJk93sP3CAjz/5hEd37iAIgpLrJKtCE21qBfKhcP5iPxs2dvDZp5+xb18nhUIe1VLGNT8wjzUFhoaGEJtlaHiU"
+    b"mtqFLMhmARCR+dEbv+eFXLnUy4r2ds5dvMwTe/ehRvDT56Nzh6kXeq59y8rV7Zw4eYo1a9rBeVQ1aYWbHOYUhu5NUruglr7eXpx4"
+    b"nEDk4quupCpFsmkUw0QhxJoUk5PjOI3wJoYBJWectwgCKQsuEgTB+DjTmm0rD1OwxtBYv4CReyM0NjaQqaqeNSgZDBCrLF1Wz9Dt"
+    b"QZY2N1MVZPDq8T4ukhLK+glgYvAuYMvmDfT1dbFp43oi51BV1PvEnpgMRqxhLV/WjIZDDA7eQGWqMARM8luEhGWukrKeH+zbwsmT"
+    b"J0il0tzPilE0oe8nzq4CC7se20TrskZUHd5rSZyuTbxoiT85FHHUpB2LGjIYa/BquDs8ybUbYzi1lQtlcROcVhO5AJX4/kUVEOHe"
+    b"yAi//O/XMVaxOg9ykgecZHBajfOK9z5WClzEkpZl9PbdZGJ8AiP5ymH3mwo6dVB6jyAsXFjPI4/s53J3f6KuZpXwTF1fxaKBo+CU"
+    b"nY/u4ty5yyimbGdzr6nVY4yhadFS7t7Lx975t4IVC0WqqmsJQ6WmKotgysb92dXUpVBh8IyNjtOyqIlbN/tpW74Ea8p3llBv9CoS"
+    b"Z4WijrCQ5ze/fp0Xnn2a45/9D3t2r0S0vHSbEGZEVSki5AtFXn311+x+bDfjk2OMjQ6xsK4Br8H8fCENIEZQL4xM5FhYt5Cnn+nk"
+    b"1Vd+wb/9678gthpnspVXMVOLrl4oFAxNTS289PLL/PyXv6Kr+zzZbAaHwyc4uZPVZ/FxzYXL11m5Zh2fff453kesXr2cdCa+1VUJ"
+    b"xM9PyaSqDi6cu8Li5qW8+eab/OQnLyBG8VEelQye2rL3oclFFxGKkWf42zs8tmsXXgxRVCBVFVAkwPmg7Nj/D8k5wQ9oaqKeAAAA"
+    b"AElFTkSuQmCC"
+)
+REMINDER_SECONDS = 20
 
 # Win32 Constants for non-activating topmost window
 GWL_EXSTYLE = -20
@@ -85,7 +141,7 @@ def is_reduced_motion_enabled() -> bool:
 
 def apply_non_activating_flags(hwnd: int):
     """Ensure the overlay window never steals keyboard focus."""
-    if not hwnd or ctypes.windll.user32 is None:
+    if not hwnd:
         return
     try:
         style = ctypes.windll.user32.GetWindowLongW(hwnd, GWL_EXSTYLE)
@@ -175,7 +231,11 @@ class SpiderOverlayWindow(QWidget):
         # Animation progress values
         self._web_progress = 0.0  # 0.0 to 1.0 (shooting / retracting web strand)
         self._spidey_y_offset = -350  # Vertical position offset of Spider-Man
-        self.spidey_target_y_offset = 0
+        self.spidey_target_y_offset = 125
+        self._pending_timers = []
+        self._active_deadline = None
+        self.web_texture = QPixmap()
+        self.web_texture.loadFromData(base64.b64decode(WEB_TEXTURE_PNG), "PNG")
 
         # Persistent Animation objects
         self.anim_web: Optional[QPropertyAnimation] = None
@@ -189,7 +249,7 @@ class SpiderOverlayWindow(QWidget):
         self.word_timer: Optional[QTimer] = None
 
         # Countdown timer state
-        self.remaining_seconds = 20 if kind == "eye" else 0
+        self.remaining_seconds = REMINDER_SECONDS
         self.countdown_timer: Optional[QTimer] = None
 
         self.setAttribute(Qt.WA_TranslucentBackground, True)
@@ -285,7 +345,7 @@ class SpiderOverlayWindow(QWidget):
         )
         card_layout.addWidget(self.msg_label)
 
-        # Countdown label for eye break
+        # Countdown shared by eye, water and custom reminders
         self.timer_label = QLabel("", self.card)
         self.timer_label.setStyleSheet(
             "color: #2563EB; font-size: 12px; font-weight: bold;"
@@ -347,7 +407,7 @@ class SpiderOverlayWindow(QWidget):
         # Spider-Man label
         self.spidey_label = QLabel(self)
         if ASSET_PATH.exists():
-            pix = QPixmap(str(ASSET_PATH))
+            pix = QPixmap(str(ASSET_PATH)).scaledToWidth(170, Qt.SmoothTransformation)
             self.spidey_label.setPixmap(pix)
             self.spidey_width = pix.width()
             self.spidey_height = pix.height()
@@ -358,22 +418,42 @@ class SpiderOverlayWindow(QWidget):
         # Hide Spider-Man during Phase 1 (Web Shot)
         self.spidey_label.hide()
 
-        # Position elements inside overlay canvas
-        card_width = max(280, self.card.sizeHint().width())
-        card_height = max(170, self.card.sizeHint().height())
+        self.spidey_label.resize(self.spidey_width, self.spidey_height)
+        # Reserve the complete sentence's height before revealing individual words.
+        self.msg_label.setTextFormat(Qt.PlainText)
+        if self.kind == "custom":
+            self.title_label.setTextFormat(Qt.PlainText)
+        message_font = QFont("Segoe UI")
+        message_font.setPixelSize(13)
+        text_height = QFontMetrics(message_font).boundingRect(
+            QRect(0, 0, 264, 10000), Qt.TextWordWrap, self.full_sentence
+        ).height()
+        self.msg_label.setMinimumHeight(text_height + 6)
+        title_height = 0
+        if self.kind == "custom":
+            title_font = QFont("Segoe UI")
+            title_font.setPixelSize(15)
+            title_font.setBold(True)
+            title_height = QFontMetrics(title_font).boundingRect(
+                QRect(0, 0, 264, 10000), Qt.TextWordWrap,
+                self.custom_data.get("title", "Custom Task")
+            ).height() + 8
+        card_width = 300
+        card_height = max(195, text_height + title_height + 155)
+        self.card.setFixedSize(card_width, card_height)
         spacing = 14
 
         self.overlay_width = card_width + spacing + self.spidey_width
-        self.overlay_height = max(card_height + 40, self.spidey_height + 20)
+        self.overlay_height = max(card_height + 155, self.spidey_height + self.spidey_target_y_offset + 20)
         self.resize(self.overlay_width, self.overlay_height)
 
         # Place card on left, Spider-Man on right
-        self.card.move(0, 30)
+        self.card.move(0, 150)
         self.spidey_x = card_width + spacing
         self.spidey_label.move(self.spidey_x, -self.spidey_height)
 
         # Web strand anchor X relative to overlay
-        self.web_anchor_x = self.spidey_x + int(self.spidey_width * 0.72)
+        self.web_anchor_x = self.spidey_x + int(self.spidey_width * 0.50)
 
     def paintEvent(self, event):
         """Paint thin white application-rendered web strand extending from top edge."""
@@ -393,25 +473,20 @@ class SpiderOverlayWindow(QWidget):
             painter = QPainter(self)
             painter.setRenderHint(QPainter.Antialiasing)
 
-            target_web_y = max(0, self._spidey_y_offset + 35)
-
-            if self.state in (OverlayState.SHOOTING_WEB, OverlayState.HOLDING_WEB):
-                # Web strand shoots down from y=0 on its own during Phase 1
-                current_web_y = int(35 * self._web_progress)
-            elif self.state == OverlayState.RETRACTING_WEB:
-                current_web_y = int(target_web_y * self._web_progress)
-            else:
-                # Web strand connected continuously to Spider-Man's hand
-                current_web_y = target_web_y
-
+            # Reveal the supplied white web first; keep it anchored while the
+            # character arrives, then retract it only after the character exits.
+            full_web_height = self.spidey_target_y_offset + 10
+            current_web_y = full_web_height
+            if self.state in (OverlayState.SHOOTING_WEB, OverlayState.RETRACTING_WEB):
+                current_web_y *= self._web_progress
             if current_web_y > 0:
-                # White inner web strand
-                painter.setPen(QPen(QColor(255, 255, 255, 245), 2))
-                painter.drawLine(self.web_anchor_x, 0, self.web_anchor_x, current_web_y)
-
-                # Light gray translucent outer glow (no blue screenshot background!)
-                painter.setPen(QPen(QColor(220, 225, 235, 120), 4))
-                painter.drawLine(self.web_anchor_x, 0, self.web_anchor_x, current_web_y)
+                painter.setRenderHint(QPainter.SmoothPixmapTransform)
+                painter.drawPixmap(
+                    QRectF(self.web_anchor_x - 4, 0, 8, current_web_y),
+                    self.web_texture,
+                    QRectF(0, 0, self.web_texture.width(),
+                           self.web_texture.height() * current_web_y / full_web_height),
+                )
 
     def start_sequence(self):
         """Position window on active monitor and launch movie-like 6-stage sequence."""
@@ -458,7 +533,7 @@ class SpiderOverlayWindow(QWidget):
 
     def run_phase_1_web_hold(self):
         self.state = OverlayState.HOLDING_WEB
-        QTimer.singleShot(WEB_HOLD_MS, self.run_phase_2_spidey_descent)
+        self._later(WEB_HOLD_MS, self.run_phase_2_spidey_descent)
 
     # --- Phase 2: Spider-Man Descent (1400ms) ---
     def run_phase_2_spidey_descent(self):
@@ -466,7 +541,7 @@ class SpiderOverlayWindow(QWidget):
         self.spidey_label.show()  # Spider-Man becomes visible attached to web strand
 
         start_offset = -self.spidey_height
-        target_offset = 0
+        target_offset = self.spidey_target_y_offset
 
         self.anim_spidey = QPropertyAnimation(self, b"spidey_y_offset", self)
         self.anim_spidey.setDuration(SPIDEY_DESCENT_MS)
@@ -484,19 +559,19 @@ class SpiderOverlayWindow(QWidget):
         # Small 3px damped hanging motion
         self.anim_settle = QPropertyAnimation(self, b"spidey_y_offset", self)
         self.anim_settle.setDuration(SETTLE_MS)
-        self.anim_settle.setStartValue(0)
-        self.anim_settle.setEndValue(3)
+        self.anim_settle.setStartValue(self.spidey_target_y_offset)
+        self.anim_settle.setEndValue(self.spidey_target_y_offset + 3)
         self.anim_settle.setEasingCurve(QEasingCurve.OutSine)
 
         def on_settle_down_done():
             # Settle back to 0
             self.anim_settle_up = QPropertyAnimation(self, b"spidey_y_offset", self)
             self.anim_settle_up.setDuration(SETTLE_MS)
-            self.anim_settle_up.setStartValue(3)
-            self.anim_settle_up.setEndValue(0)
+            self.anim_settle_up.setStartValue(self.spidey_target_y_offset + 3)
+            self.anim_settle_up.setEndValue(self.spidey_target_y_offset)
             self.anim_settle_up.setEasingCurve(QEasingCurve.InOutSine)
             self.anim_settle_up.finished.connect(
-                lambda: QTimer.singleShot(SETTLE_PAUSE_MS, self.run_phase_4_card_open)
+                lambda: self._later(SETTLE_PAUSE_MS, self.run_phase_4_card_open)
             )
             self.anim_settle_up.start()
 
@@ -561,52 +636,65 @@ class SpiderOverlayWindow(QWidget):
             self.word_timer.start(delay)
         else:
             # All words revealed
-            QTimer.singleShot(200, self.run_phase_6_active_state)
+            self._later(200, self.run_phase_6_active_state)
 
     # --- Phase 6: Active State & Countdown ---
     def run_phase_6_active_state(self):
+        if self.state == OverlayState.ACTIVE and self._active_deadline is not None:
+            return
         self.state = OverlayState.ACTIVE
-        self.btn_widget.show()  # Reveal Done & Snooze buttons
-
-        if self.kind == "eye":
-            self.timer_label.setText("20 seconds remaining")
-            self.timer_label.show()
-
-            self.countdown_timer = QTimer(self)
-            self.countdown_timer.setInterval(1000)
-            self.countdown_timer.timeout.connect(self.tick_countdown)
-            self.countdown_timer.start()
+        self.btn_widget.show()
+        self.remaining_seconds = REMINDER_SECONDS
+        self._active_deadline = time.monotonic() + REMINDER_SECONDS
+        self.timer_label.setText(f"Auto-dismiss in {REMINDER_SECONDS}s")
+        self.timer_label.show()
+        self.countdown_timer = QTimer(self)
+        self.countdown_timer.setTimerType(Qt.PreciseTimer)
+        self.countdown_timer.setInterval(100)
+        self.countdown_timer.timeout.connect(self.tick_countdown)
+        self.countdown_timer.start()
 
     def tick_countdown(self):
-        if self.state != OverlayState.ACTIVE:
+        if self.state != OverlayState.ACTIVE or self._active_deadline is None:
             return
-        self.remaining_seconds -= 1
-        if self.remaining_seconds > 0:
-            self.timer_label.setText(f"{self.remaining_seconds} seconds remaining")
-        else:
-            self.timer_label.setText("Break complete ✓")
-            if self.countdown_timer:
-                self.countdown_timer.stop()
-            # Auto trigger exit sequence 1.2s after countdown finishes
-            QTimer.singleShot(1200, self.request_close)
+        self.remaining_seconds = max(0, math.ceil(self._active_deadline - time.monotonic()))
+        self.timer_label.setText(f"Auto-dismiss in {self.remaining_seconds}s")
+        if self.remaining_seconds == 0:
+            self.countdown_timer.stop()
+            self.request_close()
 
     def jump_to_active_state(self):
-        """Instant final state for reduced motion."""
-        self.state = OverlayState.ACTIVE
+        """Instant final state for reduced motion, with the same 20-second timer."""
         self._web_progress = 1.0
-        self.set_spidey_y_offset(0)
+        self.set_spidey_y_offset(self.spidey_target_y_offset)
         self.spidey_label.show()
         self.card.show()
         self.card.setGraphicsEffect(None)
         self.msg_label.setText(self.full_sentence)
-        self.btn_widget.show()
-        if self.kind == "eye":
-            self.timer_label.setText("20 seconds remaining")
-            self.timer_label.show()
-            self.countdown_timer = QTimer(self)
-            self.countdown_timer.setInterval(1000)
-            self.countdown_timer.timeout.connect(self.tick_countdown)
-            self.countdown_timer.start()
+        self.run_phase_6_active_state()
+
+    def _later(self, milliseconds, callback):
+        """Parent delayed steps to this window so closing cancels them."""
+        timer = QTimer(self)
+        timer.setSingleShot(True)
+        self._pending_timers.append(timer)
+        def fire():
+            self._pending_timers.remove(timer)
+            timer.deleteLater()
+            callback()
+        timer.timeout.connect(fire)
+        timer.start(milliseconds)
+
+    def _stop_activity(self):
+        for timer in self.findChildren(QTimer):
+            timer.stop()
+        for animation in self.findChildren(QPropertyAnimation):
+            animation.stop()
+
+    def closeEvent(self, event):
+        self._stop_activity()
+        self.state = OverlayState.HIDDEN
+        super().closeEvent(event)
 
     # --- User Actions & Exit Sequence ---
     def request_close(self):
@@ -625,17 +713,12 @@ class SpiderOverlayWindow(QWidget):
         ):
             return  # Already exiting!
 
-        if self.word_timer:
-            self.word_timer.stop()
-        if self.countdown_timer:
-            self.countdown_timer.stop()
+        self._stop_activity()
 
         self.exit_callback = callback
 
         if self.reduced_motion:
-            self.state = OverlayState.HIDDEN
-            self.close()
-            self.exit_callback()
+            self.finish_exit()
         else:
             self.run_exit_1_close_card()
 
@@ -685,5 +768,7 @@ class SpiderOverlayWindow(QWidget):
     def finish_exit(self):
         self.state = OverlayState.HIDDEN
         self.close()
-        if hasattr(self, "exit_callback") and self.exit_callback:
-            self.exit_callback()
+        callback = getattr(self, "exit_callback", None)
+        self.exit_callback = None
+        if callback:
+            callback()
