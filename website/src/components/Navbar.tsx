@@ -1,61 +1,72 @@
 import React, { useState } from 'react';
-import { Download, Github, Menu, X } from 'lucide-react';
+import { Menu, X } from 'lucide-react';
 import { APP_CONFIG } from '../config';
 
-export const Navbar: React.FC = () => {
+interface NavbarProps {
+  currentPath: string;
+  navigate: (path: string) => void;
+}
+
+export const Navbar: React.FC<NavbarProps> = ({ currentPath, navigate }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const isManual = currentPath === '/manual' || currentPath === '/manual/';
+
+  const handleNav = (path: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    navigate(path);
+    setMobileMenuOpen(false);
+  };
 
   return (
-    <nav className="sticky top-0 z-50 bg-[#FAF9F5]/90 backdrop-blur-md border-b border-stone-200/60 transition-all">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <nav className="sticky top-0 z-50 bg-[#FAF8F5]/95 backdrop-blur-md transition-all">
+      <div className="w-full px-6 sm:px-10 lg:px-12">
         <div className="flex items-center justify-between h-20">
           
-          {/* Logo & Product Name */}
-          <a href="#" className="flex items-center gap-3 group">
-            <div className="w-10 h-10 rounded-xl bg-red-500 flex items-center justify-center shadow-md shadow-red-500/20 group-hover:scale-105 transition-transform">
-              <span className="text-xl">🕷️</span>
+          {/* Left: Logo & Product Name */}
+          <a
+            href="/"
+            onClick={(e) => handleNav('/', e)}
+            className="flex items-center gap-2.5 group"
+          >
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-red-500 flex items-center justify-center shadow-md shadow-red-500/20 group-hover:scale-105 transition-transform">
+              <span className="text-xl leading-none">🕷️</span>
             </div>
-            <div className="flex flex-col">
-              <span className="font-extrabold text-xl tracking-tight text-slate-900 group-hover:text-red-600 transition-colors">
-                {APP_CONFIG.appName}
-              </span>
-              <span className="text-xs font-semibold text-slate-400">Windows Companion</span>
-            </div>
+            <span className="font-black text-lg sm:text-xl tracking-tight text-stone-900 group-hover:text-red-600 transition-colors">
+              {APP_CONFIG.appName}
+            </span>
           </a>
 
-          {/* Desktop Nav Links */}
-          <div className="hidden md:flex items-center gap-8 font-medium text-slate-600 text-sm">
-            <a href="#features" className="hover:text-slate-900 transition-colors">Features</a>
-            <a href="#demo" className="hover:text-slate-900 transition-colors">Interactive Demo</a>
-            <a href="#how-it-works" className="hover:text-slate-900 transition-colors">How it Works</a>
-            <a href="#faq" className="hover:text-slate-900 transition-colors">FAQs</a>
-          </div>
-
-          {/* Desktop Right CTAs */}
-          <div className="hidden md:flex items-center gap-4">
+          {/* Right: Manual Link & Download Button matching Reference Image 2 */}
+          <div className="hidden sm:flex items-center gap-7 lg:gap-8">
             <a
-              href={APP_CONFIG.githubUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="p-2.5 text-slate-600 hover:text-slate-900 hover:bg-stone-200/50 rounded-xl transition-all"
-              aria-label="GitHub Repository"
+              href="/manual"
+              onClick={(e) => handleNav('/manual', e)}
+              className={`text-[17px] font-semibold transition-opacity ${
+                isManual
+                  ? 'text-stone-950 opacity-100 font-bold'
+                  : 'text-stone-900 opacity-90 hover:opacity-100'
+              }`}
             >
-              <Github className="w-5 h-5" />
+              Manual & FAQs
             </a>
+
             <a
               href={APP_CONFIG.downloadUrl}
-              className="inline-flex items-center gap-2 px-5 py-2.5 bg-slate-900 text-white rounded-xl font-semibold text-sm hover:bg-slate-800 active:scale-95 transition-all shadow-sm"
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#F1F5F9] hover:bg-slate-200/80 text-stone-900 rounded-full font-semibold text-sm sm:text-base active:scale-95 transition-all shadow-sm"
             >
-              <Download className="w-4 h-4 text-red-400" />
+              {/* Small near-black Windows Icon */}
+              <svg className="w-4 h-4 text-stone-900 fill-current" viewBox="0 0 24 24">
+                <path d="M0 3.449L9.75 2.1v9.451H0zM10.55 2v9.55H24V0zM10.55 12.45V22L24 24V12.45zM0 12.45h9.75V21.9L0 20.55z" />
+              </svg>
               <span>Download for Windows</span>
             </a>
           </div>
 
-          {/* Mobile Menu Button */}
-          <div className="flex md:hidden">
+          {/* Mobile Menu Toggle */}
+          <div className="flex sm:hidden">
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="p-2 rounded-lg text-slate-700 hover:bg-stone-200/50 transition-colors"
+              className="p-2 rounded-lg text-stone-700 hover:bg-stone-200/50 transition-colors"
               aria-label="Toggle menu"
             >
               {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
@@ -66,53 +77,34 @@ export const Navbar: React.FC = () => {
 
       {/* Mobile Menu Dropdown */}
       {mobileMenuOpen && (
-        <div className="md:hidden border-b border-stone-200 bg-[#FAF9F5] px-4 pt-2 pb-6 space-y-4">
+        <div className="sm:hidden bg-[#FAF8F5] px-6 pt-3 pb-6 space-y-4 border-b border-stone-200/40">
           <a
-            href="#features"
-            onClick={() => setMobileMenuOpen(false)}
-            className="block text-base font-medium text-slate-700 hover:text-slate-900"
+            href="/"
+            onClick={(e) => handleNav('/', e)}
+            className={`block text-base font-semibold ${
+              !isManual ? 'text-red-600 font-bold' : 'text-stone-900'
+            }`}
           >
-            Features
+            Home
           </a>
           <a
-            href="#demo"
-            onClick={() => setMobileMenuOpen(false)}
-            className="block text-base font-medium text-slate-700 hover:text-slate-900"
+            href="/manual"
+            onClick={(e) => handleNav('/manual', e)}
+            className={`block text-base font-semibold ${
+              isManual ? 'text-red-600 font-bold' : 'text-stone-900'
+            }`}
           >
-            Interactive Demo
+            Manual & FAQs
           </a>
           <a
-            href="#how-it-works"
-            onClick={() => setMobileMenuOpen(false)}
-            className="block text-base font-medium text-slate-700 hover:text-slate-900"
+            href={APP_CONFIG.downloadUrl}
+            className="w-full flex items-center justify-center gap-2 px-5 py-3 bg-[#F1F5F9] text-stone-900 rounded-full font-semibold text-sm shadow-sm mt-2"
           >
-            How it Works
+            <svg className="w-4 h-4 text-stone-900 fill-current" viewBox="0 0 24 24">
+              <path d="M0 3.449L9.75 2.1v9.451H0zM10.55 2v9.55H24V0zM10.55 12.45V22L24 24V12.45zM0 12.45h9.75V21.9L0 20.55z" />
+            </svg>
+            <span>Download for Windows ({APP_CONFIG.currentVersion})</span>
           </a>
-          <a
-            href="#faq"
-            onClick={() => setMobileMenuOpen(false)}
-            className="block text-base font-medium text-slate-700 hover:text-slate-900"
-          >
-            FAQs
-          </a>
-          <div className="pt-2 flex flex-col gap-3">
-            <a
-              href={APP_CONFIG.downloadUrl}
-              className="w-full flex items-center justify-center gap-2 px-5 py-3 bg-slate-900 text-white rounded-xl font-semibold text-sm shadow-md"
-            >
-              <Download className="w-4 h-4 text-red-400" />
-              <span>Download for Windows ({APP_CONFIG.currentVersion})</span>
-            </a>
-            <a
-              href={APP_CONFIG.githubUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="w-full flex items-center justify-center gap-2 px-5 py-3 border border-stone-300 text-slate-700 rounded-xl font-medium text-sm"
-            >
-              <Github className="w-4 h-4" />
-              <span>View Source on GitHub</span>
-            </a>
-          </div>
         </div>
       )}
     </nav>

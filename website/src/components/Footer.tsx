@@ -2,65 +2,74 @@ import React from 'react';
 import { Github, Download, Heart } from 'lucide-react';
 import { APP_CONFIG } from '../config';
 
-export const Footer: React.FC = () => {
+interface FooterProps {
+  navigate: (path: string) => void;
+}
+
+export const Footer: React.FC<FooterProps> = ({ navigate }) => {
   return (
-    <footer className="bg-slate-900 text-slate-400 py-16 border-t border-slate-800">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <footer className="bg-stone-950 text-stone-400 py-12 border-t border-stone-900">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-10 mb-12">
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-8 mb-10">
           
-          <div className="md:col-span-2 space-y-4">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-red-500 flex items-center justify-center text-lg">
+          <div className="space-y-2">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-red-500 flex items-center justify-center text-base">
                 🕷️
               </div>
-              <span className="font-extrabold text-xl text-white tracking-tight">
+              <span className="font-extrabold text-lg text-white tracking-tight">
                 {APP_CONFIG.appName}
               </span>
             </div>
-            <p className="text-sm text-slate-400 max-w-sm leading-relaxed">
-              An open-source custom break companion for Windows. Built for focus, eye health, hydration, and task management.
+            <p className="text-xs sm:text-sm text-stone-400 max-w-md">
+              A lightweight, open-source Windows desktop reminder companion. Built for focus, eye health, hydration, and custom task scheduling.
             </p>
           </div>
 
-          <div>
-            <h4 className="text-sm font-bold text-white uppercase tracking-wider mb-4">Quick Links</h4>
-            <ul className="space-y-2.5 text-sm">
-              <li><a href="#features" className="hover:text-white transition-colors">Features</a></li>
-              <li><a href="#demo" className="hover:text-white transition-colors">Interactive Demo</a></li>
-              <li><a href="#how-it-works" className="hover:text-white transition-colors">How it Works</a></li>
-              <li><a href="#faq" className="hover:text-white transition-colors">FAQs</a></li>
-            </ul>
-          </div>
-
-          <div>
-            <h4 className="text-sm font-bold text-white uppercase tracking-wider mb-4">Download & Source</h4>
-            <div className="space-y-3">
-              <a
-                href={APP_CONFIG.downloadUrl}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-xl text-xs font-bold transition-colors shadow-sm"
-              >
-                <Download className="w-3.5 h-3.5" />
-                <span>Windows Download ({APP_CONFIG.currentVersion})</span>
-              </a>
-              <div>
-                <a
-                  href={APP_CONFIG.githubUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 text-sm text-slate-400 hover:text-white transition-colors"
-                >
-                  <Github className="w-4 h-4" />
-                  <span>GitHub Repository</span>
-                </a>
-              </div>
-            </div>
+          <div className="flex flex-wrap items-center gap-6 text-xs sm:text-sm font-semibold text-stone-300">
+            <a
+              href="/"
+              onClick={(e) => {
+                e.preventDefault();
+                navigate('/');
+              }}
+              className="hover:text-white transition-colors"
+            >
+              Home
+            </a>
+            <a
+              href="/manual"
+              onClick={(e) => {
+                e.preventDefault();
+                navigate('/manual');
+              }}
+              className="hover:text-white transition-colors"
+            >
+              Manual & FAQs
+            </a>
+            <a
+              href={APP_CONFIG.githubUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 hover:text-white transition-colors"
+            >
+              <Github className="w-4 h-4" />
+              <span>GitHub</span>
+            </a>
+            <a
+              href={APP_CONFIG.downloadUrl}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-red-600 hover:bg-red-500 text-white rounded-xl text-xs font-bold transition-colors shadow-sm"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>Download EXE ({APP_CONFIG.currentVersion})</span>
+            </a>
           </div>
 
         </div>
 
-        <div className="pt-8 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 gap-4">
-          <p>© {new Date().getFullYear()} Spidey Reminder. Open Source Software.</p>
+        <div className="pt-6 border-t border-stone-900 flex flex-col sm:flex-row items-center justify-between text-xs text-stone-500 gap-3">
+          <p>© {new Date().getFullYear()} Spidey Reminder. Open Source Software (MIT).</p>
           <div className="flex items-center gap-1">
             <span>Crafted with</span>
             <Heart className="w-3.5 h-3.5 text-red-500 fill-red-500 inline" />
