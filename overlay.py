@@ -473,12 +473,11 @@ class SpiderOverlayWindow(QWidget):
             painter = QPainter(self)
             painter.setRenderHint(QPainter.Antialiasing)
 
-            # Reveal the supplied white web first; keep it anchored while the
-            # character arrives, then retract it only after the character exits.
+            # Reveal the web attached to Spider-Man's hands, anchored at top of screen
             full_web_height = self.spidey_target_y_offset + 10
-            current_web_y = full_web_height
+            current_web_y = max(0, self._spidey_y_offset + 10)
             if self.state in (OverlayState.SHOOTING_WEB, OverlayState.RETRACTING_WEB):
-                current_web_y *= self._web_progress
+                current_web_y = max(0, int(full_web_height * self._web_progress))
             if current_web_y > 0:
                 painter.setRenderHint(QPainter.SmoothPixmapTransform)
                 painter.drawPixmap(
@@ -514,7 +513,7 @@ class SpiderOverlayWindow(QWidget):
         if self.reduced_motion:
             self.jump_to_active_state()
         else:
-            self.run_phase_1_web_shot()
+            self.run_phase_2_spidey_descent()
 
     # --- Phase 1: Web Shot (550ms + 200ms hold) ---
     def run_phase_1_web_shot(self):
@@ -750,7 +749,7 @@ class SpiderOverlayWindow(QWidget):
         self.anim_ascend.setStartValue(self._spidey_y_offset)
         self.anim_ascend.setEndValue(-self.spidey_height)
         self.anim_ascend.setEasingCurve(QEasingCurve.InCubic)
-        self.anim_ascend.finished.connect(self.run_exit_3_retract_web)
+        self.anim_ascend.finished.connect(self.finish_exit)
         self.anim_ascend.start()
 
     # --- Exit Step 3: Retract Web Strand (350ms) ---

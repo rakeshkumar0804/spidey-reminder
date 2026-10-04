@@ -10,9 +10,9 @@ import sys
 from pathlib import Path
 from typing import Optional
 
-from PyQt5.QtWidgets import QApplication
+from PyQt5.QtWidgets import QApplication, QMessageBox
 
-from config import load_settings
+from config import load_settings, set_autostart
 from overlay import OverlayState, SpiderOverlayWindow
 from reminder_engine import ReminderEngine
 from settings_dialog import SettingsDialog
@@ -20,15 +20,17 @@ from tray import TrayManager
 
 # Windows Single-Instance Mutex
 MUTEX_NAME = "SpiderBreakCompanion_SingleInstance_Mutex"
+_GLOBAL_MUTEX = None
 
 
 def ensure_single_instance() -> bool:
-    """Enforce single instance on Windows using a named system mutex."""
+    """Enforce single instance on Windows using a named system mutex kept alive in global scope."""
+    global _GLOBAL_MUTEX
     if sys.platform != "win32":
         return True
     try:
         kernel32 = ctypes.windll.kernel32
-        mutex = kernel32.CreateMutexW(None, False, MUTEX_NAME)
+        _GLOBAL_MUTEX = kernel32.CreateMutexW(None, True, MUTEX_NAME)
         last_error = kernel32.GetLastError()
         if last_error == 183:  # ERROR_ALREADY_EXISTS
             return False
@@ -40,13 +42,20 @@ def ensure_single_instance() -> bool:
 class BreakCompanionApp:
     """Main application manager for Spider Break Companion."""
 
-    def __init__(self):
-        self.app = QApplication(sys.argv)
+    def __init__(self, qapp: Optional[QApplication] = None):
+        self.app = qapp or QApplication(sys.argv)
         self.app.setQuitOnLastWindowClosed(False)
         self.app.setApplicationName("Spider Break Companion")
 
         # Load persisted settings
         self.settings = load_settings()
+
+        # Ensure Windows startup registry matches saved preference
+        if self.settings.get("start_with_windows", False):
+            try:
+                set_autostart(True)
+            except Exception:
+                pass
 
         # Active overlay and settings dialog handles
         self.active_overlay: Optional[SpiderOverlayWindow] = None
@@ -57,13 +66,15 @@ class BreakCompanionApp:
 
         # Initialize system tray icon and menu
         self.tray = TrayManager(
-            on_test_eye=lambda: self.engine.trigger_test("eye"),
-            on_test_water=lambda: self.engine.trigger_test("water"),
+            on_open_manager=self.open_settings,
+            on_test_animation=lambda: self.engine.trigger_test("custom", {"title": "Test Animation", "message": "Look 20 feet away for 20 seconds"}),
             on_toggle_pause=self.toggle_pause,
-            on_open_settings=self.open_settings,
             on_quit=self.quit,
         )
         self.tray.show()
+
+        # Open Reminder Manager GUI on launch for clear visual feedback
+        self.open_settings()
 
     def toggle_pause(self) -> bool:
         """Toggle pause state in reminder engine and return new state."""
@@ -115,7 +126,7 @@ class BreakCompanionApp:
         dialog = SettingsDialog(
             settings=self.settings,
             on_save_callback=self.on_settings_saved,
-            on_test_callback=self.engine.trigger_test,
+            on_test_animation_callback=lambda: self.engine.trigger_test("custom", {"title": "Test Animation", "message": "Look 20 feet away for 20 seconds"}),
         )
         self.settings_dialog = dialog
         dialog.show()
@@ -138,12 +149,19 @@ class BreakCompanionApp:
 
 
 def main():
+    qapp = QApplication(sys.argv)
+
     if not ensure_single_instance():
-        print("Spider Break Companion is already running.")
+        QMessageBox.information(
+            None,
+            "Spidey Reminder",
+            "Spidey Reminder is already running in your Windows System Tray (near the clock).\n\n"
+            "Right-click the spider tray icon to open Reminder Manager or trigger a test animation.",
+        )
         sys.exit(0)
 
-    app = BreakCompanionApp()
-    sys.exit(app.run())
+    companion = BreakCompanionApp(qapp)
+    sys.exit(companion.run())
 
 
 if __name__ == "__main__":

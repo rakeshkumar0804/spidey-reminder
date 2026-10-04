@@ -249,10 +249,12 @@ class SettingsDialog(QDialog):
 
         self.startup_check = QCheckBox("Start with Windows automatically", pref_group)
         self.startup_check.setChecked(bool(self.settings.get("start_with_windows", False)))
+        self.startup_check.toggled.connect(self.on_startup_toggled)
         pref_layout.addWidget(self.startup_check)
 
         self.reduced_motion_check = QCheckBox("Enable reduced motion (skip entrance animations)", pref_group)
         self.reduced_motion_check.setChecked(bool(self.settings.get("reduced_motion", False)))
+        self.reduced_motion_check.toggled.connect(self.on_reduced_motion_toggled)
         pref_layout.addWidget(self.reduced_motion_check)
 
         main_layout.addWidget(pref_group)
@@ -509,13 +511,30 @@ class SettingsDialog(QDialog):
         self.refresh_table()
         self.on_save_callback(self.settings)
 
-    def save_preferences_and_close(self):
-        """Save startup and reduced motion preferences and close dialog."""
+    def on_startup_toggled(self, checked: bool):
+        """Immediately update autostart registry and settings upon checkbox toggle."""
+        try:
+            set_autostart(checked)
+        except OSError as exc:
+            QMessageBox.warning(self, "Startup Setting Error", str(exc))
+
+        self.settings["start_with_windows"] = checked
+        save_settings(self.settings)
+        self.on_save_callback(self.settings)
+
+    def on_reduced_motion_toggled(self, checked: bool):
+        """Immediately update reduced motion preference."""
+        self.settings["reduced_motion"] = checked
+        save_settings(self.settings)
+        self.on_save_callback(self.settings)
+
+    def save_preferences(self):
+        """Ensure current preference values are saved to disk and registry."""
         startup = self.startup_check.isChecked()
         try:
             set_autostart(startup)
-        except OSError as exc:
-            QMessageBox.warning(self, "Startup Setting Error", str(exc))
+        except Exception:
+            pass
 
         self.settings.update({
             "start_with_windows": startup,
@@ -524,4 +543,18 @@ class SettingsDialog(QDialog):
         })
         save_settings(self.settings)
         self.on_save_callback(self.settings)
+
+    def save_preferences_and_close(self):
+        """Save preferences and accept dialog."""
+        self.save_preferences()
         self.accept()
+
+    def closeEvent(self, event):
+        """Guarantee preferences are saved whenever dialog window is closed."""
+        self.save_preferences()
+        super().closeEvent(event)
+
+    def reject(self):
+        """Guarantee preferences are saved when closed via Escape key or X button."""
+        self.save_preferences()
+        super().reject()
