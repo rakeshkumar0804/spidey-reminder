@@ -17,6 +17,9 @@ from __future__ import annotations
 import ctypes
 import base64
 import math
+import os
+import shutil
+import sys
 import time
 import re
 from enum import Enum, auto
@@ -53,7 +56,48 @@ from PyQt5.QtWidgets import (
     QWidget,
 )
 
-ASSET_PATH = Path(__file__).parent / "spiderman_hanging.png"
+_SPIDEY_PIXMAP_CACHE: Optional[QPixmap] = None
+
+
+def get_spidey_pixmap() -> Optional[QPixmap]:
+    """Retrieve and cache Spider-Man pixmap from memory, disk, or persistent AppData.
+
+    Prevents disappearing character when Windows Storage Sense or background
+    temp cleaners purge loose files from PyInstaller's temporary directory.
+    """
+    global _SPIDEY_PIXMAP_CACHE
+    if _SPIDEY_PIXMAP_CACHE is not None and not _SPIDEY_PIXMAP_CACHE.isNull():
+        return _SPIDEY_PIXMAP_CACHE
+
+    candidates: list[Path] = []
+    # 1. PyInstaller extracted directory
+    if hasattr(sys, "_MEIPASS"):
+        candidates.append(Path(sys._MEIPASS) / "spiderman_hanging.png")
+    # 2. Module directory
+    candidates.append(Path(__file__).parent / "spiderman_hanging.png")
+    # 3. Persistent AppData directory
+    appdata_dir = Path(os.environ.get("APPDATA", Path.home())) / "SpiderBreakCompanion"
+    candidates.append(appdata_dir / "spiderman_hanging.png")
+    # 4. Executable parent directory
+    candidates.append(Path(sys.executable).parent / "spiderman_hanging.png")
+    # 5. Current working directory
+    candidates.append(Path.cwd() / "spiderman_hanging.png")
+
+    for candidate in candidates:
+        if candidate.exists():
+            pix = QPixmap(str(candidate))
+            if not pix.isNull():
+                _SPIDEY_PIXMAP_CACHE = pix.scaledToWidth(170, Qt.SmoothTransformation)
+                try:
+                    target = appdata_dir / "spiderman_hanging.png"
+                    if not target.exists():
+                        appdata_dir.mkdir(parents=True, exist_ok=True)
+                        shutil.copy2(candidate, target)
+                except Exception:
+                    pass
+                return _SPIDEY_PIXMAP_CACHE
+
+    return None
 
 # User-supplied twisted web artwork, cut out and embedded to keep the repository layout.
 WEB_TEXTURE_PNG = (
@@ -406,13 +450,13 @@ class SpiderOverlayWindow(QWidget):
 
         # Spider-Man label
         self.spidey_label = QLabel(self)
-        if ASSET_PATH.exists():
-            pix = QPixmap(str(ASSET_PATH)).scaledToWidth(170, Qt.SmoothTransformation)
+        pix = get_spidey_pixmap()
+        if pix is not None and not pix.isNull():
             self.spidey_label.setPixmap(pix)
             self.spidey_width = pix.width()
             self.spidey_height = pix.height()
         else:
-            self.spidey_width = 150
+            self.spidey_width = 170
             self.spidey_height = 290
 
         # Hide Spider-Man during Phase 1 (Web Shot)

@@ -1,20 +1,46 @@
 """System tray manager for Spider Break Companion."""
 from __future__ import annotations
 
+import os
+import shutil
+import sys
 from pathlib import Path
-from typing import Callable
+from typing import Callable, Optional
 
 from PyQt5.QtCore import QPoint, Qt
 from PyQt5.QtGui import QColor, QIcon, QPainter, QPixmap, QPolygon
 from PyQt5.QtWidgets import QAction, QMenu, QSystemTrayIcon
 
-TRAY_ICON_PATH = Path(__file__).parent / "tray_icon.png"
+
+def get_tray_icon_path() -> Optional[Path]:
+    """Resolve tray icon path across PyInstaller temp, persistent AppData, and module dir."""
+    candidates: list[Path] = []
+    if hasattr(sys, "_MEIPASS"):
+        candidates.append(Path(sys._MEIPASS) / "tray_icon.png")
+    candidates.append(Path(__file__).parent / "tray_icon.png")
+    appdata_dir = Path(os.environ.get("APPDATA", Path.home())) / "SpiderBreakCompanion"
+    candidates.append(appdata_dir / "tray_icon.png")
+    candidates.append(Path(sys.executable).parent / "tray_icon.png")
+    candidates.append(Path.cwd() / "tray_icon.png")
+
+    for c in candidates:
+        if c.exists():
+            try:
+                target = appdata_dir / "tray_icon.png"
+                if not target.exists():
+                    appdata_dir.mkdir(parents=True, exist_ok=True)
+                    shutil.copy2(c, target)
+            except Exception:
+                pass
+            return c
+    return None
 
 
 def create_default_tray_icon() -> QIcon:
     """Generate a clean spider tray icon pixmap if icon file does not exist."""
-    if TRAY_ICON_PATH.exists():
-        return QIcon(str(TRAY_ICON_PATH))
+    icon_path = get_tray_icon_path()
+    if icon_path and icon_path.exists():
+        return QIcon(str(icon_path))
 
     pixmap = QPixmap(32, 32)
     pixmap.fill(Qt.transparent)
