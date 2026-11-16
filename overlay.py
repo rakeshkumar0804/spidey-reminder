@@ -1,13 +1,12 @@
 """Overlay window for Spider-Man break companion.
 
-Features a movie-like 6-stage entrance animation sequence:
-1. WEB SHOT: Thin web shoots downward from top edge over 550 ms (Spider-Man & card hidden).
-2. WEB HOLD: Hold web strand alone for 200 ms.
-3. SPIDER-MAN DESCENT: Visibly descends from above screen over 1,400 ms attached to strand.
-4. SETTLE: Small damped hanging motion + pause for 400 ms.
-5. CARD OPEN: Open empty reminder card over 400 ms (heading visible, sentence hidden).
-6. WORD REVEAL: Reveal sentence WORD BY WORD at 300 ms per word.
-7. ACTIVE: Every reminder counts down for 20 seconds, then exits automatically.
+Features a movie-like coordinated entrance and exit animation sequence:
+1. COORDINATED DESCENT: Spider-Man and attached web descend together from top edge over 1,400 ms.
+2. SETTLE: Small damped hanging motion + pause for 400 ms.
+3. CARD OPEN: Open empty reminder card over 400 ms (heading visible, sentence hidden).
+4. WORD REVEAL: Reveal sentence WORD BY WORD at 300 ms per word.
+5. ACTIVE: Every reminder counts down for 20 seconds, then exits automatically.
+6. COORDINATED EXIT: Spider-Man and attached web ascend together off-screen.
 
 Clean character transparency, separate application-rendered web strand, Win32 focus protection,
 and screen bounds constraint.

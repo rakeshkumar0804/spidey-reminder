@@ -156,3 +156,22 @@ def set_autostart(enabled: bool) -> None:
                     pass
     except Exception as exc:
         raise OSError(f"Failed to update startup registry: {exc}") from exc
+
+
+def is_autostart_enabled() -> bool:
+    """Check if the application is currently registered in Windows startup registry."""
+    if sys.platform != "win32":
+        return False
+    try:
+        with winreg.OpenKey(
+            winreg.HKEY_CURRENT_USER,
+            r"Software\Microsoft\Windows\CurrentVersion\Run",
+            0,
+            winreg.KEY_READ,
+        ) as key:
+            val, _ = winreg.QueryValueEx(key, APP_NAME)
+            return bool(val)
+    except FileNotFoundError:
+        return False
+    except Exception:
+        return False

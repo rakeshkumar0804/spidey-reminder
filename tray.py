@@ -66,7 +66,9 @@ def create_default_tray_icon() -> QIcon:
     painter.end()
 
     try:
-        pixmap.save(str(TRAY_ICON_PATH))
+        appdata_dir = Path(os.environ.get("APPDATA", Path.home())) / "SpiderBreakCompanion"
+        appdata_dir.mkdir(parents=True, exist_ok=True)
+        pixmap.save(str(appdata_dir / "tray_icon.png"))
     except Exception:
         pass
 
