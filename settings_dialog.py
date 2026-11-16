@@ -29,7 +29,7 @@ from PyQt5.QtWidgets import (
     QWidget,
 )
 
-from config import save_settings, set_autostart
+from config import is_autostart_enabled, save_settings, set_autostart
 
 
 class SettingsDialog(QDialog):
@@ -247,8 +247,13 @@ class SettingsDialog(QDialog):
         pref_layout = QVBoxLayout(pref_group)
         pref_layout.setSpacing(6)
 
+        initial_startup = bool(self.settings.get("start_with_windows", False))
+        if not initial_startup and is_autostart_enabled():
+            initial_startup = True
+            self.settings["start_with_windows"] = True
+
         self.startup_check = QCheckBox("Start with Windows automatically", pref_group)
-        self.startup_check.setChecked(bool(self.settings.get("start_with_windows", False)))
+        self.startup_check.setChecked(initial_startup)
         self.startup_check.toggled.connect(self.on_startup_toggled)
         pref_layout.addWidget(self.startup_check)
 
@@ -516,7 +521,11 @@ class SettingsDialog(QDialog):
         try:
             set_autostart(checked)
         except OSError as exc:
+            self.startup_check.blockSignals(True)
+            self.startup_check.setChecked(not checked)
+            self.startup_check.blockSignals(False)
             QMessageBox.warning(self, "Startup Setting Error", str(exc))
+            return
 
         self.settings["start_with_windows"] = checked
         save_settings(self.settings)

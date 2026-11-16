@@ -39,6 +39,20 @@ def ensure_single_instance() -> bool:
         return True
 
 
+def release_single_instance() -> None:
+    """Release and close the named system mutex handle cleanly on shutdown."""
+    global _GLOBAL_MUTEX
+    if sys.platform != "win32" or _GLOBAL_MUTEX is None:
+        return
+    try:
+        kernel32 = ctypes.windll.kernel32
+        kernel32.ReleaseMutex(_GLOBAL_MUTEX)
+        kernel32.CloseHandle(_GLOBAL_MUTEX)
+        _GLOBAL_MUTEX = None
+    except Exception:
+        pass
+
+
 class BreakCompanionApp:
     """Main application manager for Spider Break Companion."""
 
@@ -137,11 +151,12 @@ class BreakCompanionApp:
         self.engine.update_settings(new_settings)
 
     def quit(self):
-        """Clean application exit: stop timers, hide tray icon, close overlay."""
+        """Clean application exit: stop timers, hide tray icon, close overlay, release mutex."""
         self.engine.stop_timers()
         if self.active_overlay is not None:
             self.active_overlay.close()
         self.tray.cleanup()
+        release_single_instance()
         self.app.quit()
 
     def run(self) -> int:
